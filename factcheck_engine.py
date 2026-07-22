@@ -87,14 +87,40 @@ def run_checks(filepath, kb):
     for m in re.finditer(r'non-?traumatic[^.]{0,90}?12\s*month', norm):
         add_flag(flags, 'Key fact mismatch', 'high', 'nontraumatic ... 12 months', 'Twelve months applies to traumatic VS/UWS; nontraumatic VS/UWS uses 3 months.', '7', context(norm, m.start(), m.end()))
 
+    if 'crs-r' in norm:
+        for m in re.finditer(r'crs-r[^.]{0,60}?score[^.]{0,20}?(?:of\s*)?(\d{1,2})', norm):
+            score = int(m.group(1))
+            if score < 6:
+                add_flag(flags, 'Key fact mismatch', 'high', f'CRS-R score {score}', 'Guideline associates CRS-R scores of 6 or higher (>1 month after onset) with increased likelihood of recovery in nontraumatic post-anoxic VS/UWS.', '6', context(norm, m.start(), m.end()))
+
+    for m in re.finditer(r'\bdrs\b[^.]{0,80}?(\d{1,2})\s*(?:-|to)\s*(\d{1,2})\s*month', norm):
+        lo, hi = int(m.group(1)), int(m.group(2))
+        if (lo, hi) != (2, 3):
+            add_flag(flags, 'Key fact mismatch', 'medium', f'DRS at {lo}-{hi} months', 'Guideline specifies the DRS should be performed at 2-3 months post injury for traumatic VS/UWS.', '5', context(norm, m.start(), m.end()))
+
+    for m in re.finditer(r'\bmri\b[^.]{0,80}?(\d{1,2})\s*(?:-|to)\s*(\d{1,2})\s*week', norm):
+        lo, hi = int(m.group(1)), int(m.group(2))
+        if (lo, hi) != (6, 8):
+            add_flag(flags, 'Key fact mismatch', 'medium', f'MRI at {lo}-{hi} weeks', 'Guideline specifies MRI should be performed 6-8 weeks post injury in traumatic VS/UWS.', '5', context(norm, m.start(), m.end()))
+
+    for m in re.finditer(r'\bspect\b[^.]{0,80}?(\d{1,2})\s*(?:-|to)\s*(\d{1,2})\s*month', norm):
+        lo, hi = int(m.group(1)), int(m.group(2))
+        if (lo, hi) != (1, 2):
+            add_flag(flags, 'Key fact mismatch', 'medium', f'SPECT at {lo}-{hi} months', 'Guideline specifies SPECT should be performed 1-2 months post injury in traumatic VS/UWS.', '5', context(norm, m.start(), m.end()))
+
     topic_levels = {
         'amantadine': ('14', ['B']),
         'crs-r': ('6', ['B']),
         'coma recovery': ('6', ['B']),
+        'sep': ('6', ['C']),
         'multidisciplinary rehabilitation': ('1', ['B']),
         'patient and family preferences': ('11', ['A']),
         'goals of care': ('9', ['A']),
-        'pain': ('13', ['B'])
+        'pain': ('13', ['B']),
+        'serial standardized': ('4', ['B']),
+        'drs': ('5', ['B']),
+        'spect': ('5', ['B']),
+        'chronic phase': ('10', ['B'])
     }
     for m in re.finditer(r'Level\s+([ABCU])\b', text, re.IGNORECASE):
         cited = m.group(1).upper()
