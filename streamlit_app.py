@@ -54,7 +54,7 @@ def add_history_entry(filename, result, counts, docx_path):
 # ---------------------------------------------------------------------------
 # Shared rendering for a result (used for both fresh checks and history)
 # ---------------------------------------------------------------------------
-def render_result(filename, counts, flags, docx_path=None, checked_at=None):
+def render_result(filename, counts, flags, docx_path=None, checked_at=None, key_suffix=None):
     caption = filename if not checked_at else f'{filename} — checked {checked_at}'
     st.subheader(caption)
 
@@ -83,7 +83,7 @@ def render_result(filename, counts, flags, docx_path=None, checked_at=None):
                 data=f.read(),
                 file_name=f'DoC_factcheck_{filename}.docx',
                 mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                key=f'download_{filename}_{checked_at}',
+                key=f'download_{key_suffix}',
             )
 
 
@@ -134,6 +134,7 @@ with tab_check:
                 render_result(
                     entry['filename'], entry['counts'], entry['flags'],
                     docx_path=entry['docx_path'], checked_at=entry['checked_at'],
+                    key_suffix=f"check_{entry['id']}",
                 )
 
             except Exception as e:
@@ -154,4 +155,5 @@ with tab_history:
         render_result(
             selected_entry['filename'], selected_entry['counts'], selected_entry['flags'],
             docx_path=selected_entry['docx_path'], checked_at=selected_entry['checked_at'],
+            key_suffix=f"history_{selected_entry['id']}",
         )
