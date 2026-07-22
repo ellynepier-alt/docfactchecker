@@ -3,7 +3,7 @@ from docx import Document
 from docx.shared import RGBColor
 from werkzeug.utils import secure_filename
 
-SUPPORTED_EXTS = {'.txt', '.md', '.docx', '.pdf'}
+SUPPORTED_EXTS = {'.txt', '.md', '.docx', '.pdf', '.pptx'}
 
 
 def load_kb(path):
@@ -29,6 +29,25 @@ def extract_text(path):
         import fitz
         doc = fitz.open(path)
         return '\n'.join(page.get_text() for page in doc)
+    if ext == '.pptx':
+        from pptx import Presentation
+        prs = Presentation(path)
+        chunks = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        text = ''.join(run.text for run in para.runs)
+                        if text.strip():
+                            chunks.append(text)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            if cell.text.strip():
+                                chunks.append(cell.text)
+                if shape.has_chart:
+                    continue
+        return '\n'.join(chunks)
     raise ValueError('Unsupported file type')
 
 
