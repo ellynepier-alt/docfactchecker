@@ -48,10 +48,23 @@ def add_history_entry(filename, result, counts):
         'counts': counts,
         'flags': result['flags'],
         'coverage': result['coverage'],
+        'clarity': result['clarity'],
     }
     entries.insert(0, entry)
     save_history(entries)
     return entry
+
+
+def default_clarity():
+    return {
+        'flesch_reading_ease': None,
+        'flesch_kincaid_grade': None,
+        'avg_sentence_length': None,
+        'long_sentences': [],
+        'undefined_acronyms': [],
+        'passive_voice_count': 0,
+        'suggestions': ['Clarity analysis was not available when this material was originally checked. Re-run the check to generate it.'],
+    }
 
 
 def counts_from_flags(flags):
@@ -64,7 +77,7 @@ def counts_from_flags(flags):
 # ---------------------------------------------------------------------------
 # Shared rendering for a result (used for both fresh checks and history)
 # ---------------------------------------------------------------------------
-def render_result(filename, counts, flags, coverage, kb, checked_at=None, key_suffix=None):
+def render_result(filename, counts, flags, coverage, clarity, kb, checked_at=None, key_suffix=None):
     caption = filename if not checked_at else f'{filename} — checked {checked_at}'
     st.subheader(caption)
 
@@ -99,6 +112,25 @@ def render_result(filename, counts, flags, coverage, kb, checked_at=None, key_su
         for rec in kb['recommendations']
     ]
     st.dataframe(coverage_rows, use_container_width=True, hide_index=True)
+
+    st.markdown('#### Clarity & understandability suggestions')
+    c1, c2, c3 = st.columns(3)
+    c1.metric('Reading grade level', clarity['flesch_kincaid_grade'] if clarity['flesch_kincaid_grade'] is not None else 'N/A')
+    c2.metric('Reading ease', clarity['flesch_reading_ease'] if clarity['flesch_reading_ease'] is not None else 'N/A')
+    c3.metric('Avg. sentence length', f"{clarity['avg_sentence_length']} words" if clarity['avg_sentence_length'] is not None else 'N/A')
+
+    for suggestion in clarity['suggestions']:
+        st.warning(suggestion) if 'No major clarity issues' not in suggestion else st.success(suggestion)
+
+    if clarity['long_sentences']:
+        with st.expander(f"Long sentences ({len(clarity['long_sentences'])})"):
+            for s in clarity['long_sentences']:
+                st.write(f"**{s['word_count']} words:** {s['text']}")
+
+    if clarity['undefined_acronyms']:
+        with st.expander(f"Undefined acronyms ({len(clarity['undefined_acronyms'])})"):
+            for a in clarity['undefined_acronyms']:
+                st.write(f"**{a['acronym']}** — {a['expansion']}")
 
     with st.expander('Appendix: guideline recommendation wording'):
         for rec in kb['recommendations']:
@@ -141,7 +173,7 @@ with tab_check:
 
                 st.success('Fact-check complete — saved to "Previously reviewed."')
                 render_result(
-                    entry['filename'], entry['counts'], entry['flags'], entry['coverage'], kb,
+                    entry['filename'], entry['counts'], entry['flags'], entry['coverage'], entry['clarity'], kb,
                     checked_at=entry['checked_at'], key_suffix=f"check_{entry['id']}",
                 )
 
@@ -162,7 +194,6 @@ with tab_history:
 
         render_result(
             selected_entry['filename'], selected_entry['counts'], selected_entry['flags'],
-            selected_entry['coverage'], kb,
+            selected_entry['coverage'], selected_entry.get('clarity', default_clarity()), kb,
             checked_at=selected_entry['checked_at'], key_suffix=f"history_{selected_entry['id']}",
         )
-        
