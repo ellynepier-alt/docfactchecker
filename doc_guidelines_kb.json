@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "title": "Practice Guideline Update: Disorders of Consciousness",
+    "sponsors": "AAN, ACRM, NIDILRR",
+    "year": 2018,
+    "citation": "Giacino JT, Katz DI, Schiff ND, Whyte J, et al. Practice guideline update recommendations summary: Disorders of consciousness. Neurology. 2018;91(10):450-460."
+  },
+  "recommendations": [
+    {"id":"1","topic":"Specialized multidisciplinary rehabilitation","level":["B"],"text":"Clinicians should refer patients with DoC who have achieved medical stability to settings staffed by multidisciplinary rehabilitation teams with specialized training to optimize diagnostic evaluation, prognostication, and subsequent management, including effective medical monitoring and rehabilitative care (Level B)."},
+    {"id":"2a","topic":"Standardized valid neurobehavioral assessments","level":["B"],"text":"Clinicians should use standardized neurobehavioral assessment measures that have been shown to be valid and reliable to improve diagnostic accuracy (Level B)."},
+    {"id":"2b","topic":"Serial standardized neurobehavioral assessments","level":["B"],"text":"To reduce diagnostic error, serial standardized neurobehavioral assessments should be performed with the interval of reassessment determined by individual clinical circumstances (Level B)."},
+    {"id":"2c","topic":"Increase arousal before assessment","level":["B"],"text":"Clinicians should attempt to increase arousal before performing evaluations anytime diminished arousal is observed or suspected (Level B)."},
+    {"id":"2d","topic":"Identify and treat confounding conditions","level":["B"],"text":"Clinicians should identify and treat conditions that may confound accurate diagnosis of a DoC prior to establishing a final diagnosis (Level B)."},
+    {"id":"2e","topic":"Multimodal evaluations when ambiguity remains","level":["C"],"text":"When ambiguity remains despite serial neurobehavioral assessments, clinicians may use multimodal evaluations incorporating specialized functional imaging or electrophysiologic studies (Level C)."},
+    {"id":"3","topic":"Avoid universally poor prognosis statements in first 28 days","level":["A"],"text":"When discussing prognosis with caregivers during the first 28 days post injury, clinicians must avoid statements suggesting these patients have a universally poor prognosis (Level A)."},
+    {"id":"4","topic":"Serial behavioral evaluations for prognosis","level":["B"],"text":"Clinicians caring for patients with prolonged DoC should perform serial standardized behavioral evaluations to identify trends in recovery that are important for establishing prognosis (Level B)."},
+    {"id":"5","topic":"Posttraumatic VS/UWS prognostic tools","level":["B","C"],"text":"For posttraumatic VS/UWS, clinicians should perform the DRS at 2-3 months post injury and may assess P300 or EEG reactivity at 2-3 months to assist prognostication; MRI at 6-8 weeks may assist with prognostication regarding remaining in VS/UWS at 12 months."},
+    {"id":"6","topic":"Nontraumatic post-anoxic VS/UWS prognostic tools","level":["B","C"],"text":"For nontraumatic post-anoxic VS/UWS, clinicians should perform the CRS-R and may assess SEPs to assist prognostication regarding recovery of consciousness at 24 months."},
+    {"id":"7","topic":"Discontinue permanent VS terminology","level":["B"],"text":"Use of the term permanent VS should be discontinued. After 3 months in nontraumatic VS/UWS and 12 months in traumatic VS/UWS, use chronic VS/UWS accompanied by duration (Level B)."},
+    {"id":"8","topic":"Prognostic factors and individual variability","level":["B"],"text":"MCS diagnosed within 5 months of injury and traumatic etiology are associated with more favorable outcomes; VS/UWS and nontraumatic DoC etiology are associated with poorer outcomes, but individual outcomes vary and prognosis is not universally poor (Level B)."},
+    {"id":"9","topic":"Goals of care and long-term planning","level":["A"],"text":"Once prognosis indicates likely severe long-term disability, clinicians must counsel family members to seek assistance establishing goals of care, completing state-specific medical decision-making forms, applying for benefits, and starting estate, caregiver, and long-term care planning (Level A)."},
+    {"id":"10","topic":"Chronic phase prognostic counseling","level":["B"],"text":"When patients enter the chronic phase of VS/UWS, prognostic counseling should emphasize the likelihood of permanent severe disability and the need for long-term assistive care (Level B)."},
+    {"id":"11","topic":"Patient and family preferences","level":["A"],"text":"Clinicians must identify patient and family preferences early and throughout care to guide decision-making for persons with prolonged DoC (Level A)."},
+    {"id":"12","topic":"Medical complications","level":["B"],"text":"Clinicians should be vigilant to common medical complications during the first few months after injury and use a systematic assessment approach for prevention, early identification, and treatment (Level B)."},
+    {"id":"13","topic":"Pain and suffering","level":["B"],"text":"Clinicians should assess individuals with DoC for evidence of pain or suffering and treat when reasonable cause exists, regardless of level of consciousness. Clinicians should counsel families that uncertainty remains regarding the degree of pain and suffering experienced by patients with DoC (Level B)."},
+    {"id":"14","topic":"Amantadine","level":["B"],"text":"For traumatic VS/UWS or MCS patients 4-16 weeks post injury, clinicians should prescribe amantadine 100-200 mg twice daily to hasten functional recovery and reduce disability after determining no contraindications or case-specific risks (Level B)."},
+    {"id":"15","topic":"Nonvalidated treatments","level":["B"],"text":"Clinicians should counsel families about limitations of evidence concerning treatment effectiveness and the potential risks and harms of interventions that lack evidentiary support. When discussing nonvalidated treatments, clinicians should provide evidence-based information about projected benefits, risks, and uncertainty (Level B)."},
+    {"id":"16","topic":"Pediatric diagnostic accuracy","level":["B"],"text":"Clinicians should treat confounding conditions, increase arousal prior to diagnostic assessments, use valid and reliable standardized behavioral assessments, and conduct serial assessments to improve diagnostic accuracy in children with prolonged DoC (Level B)."},
+    {"id":"17","topic":"Pediatric prognosis","level":["B"],"text":"Clinicians should counsel families that natural history and prognosis of children with prolonged DoC is not well defined and that no current evaluations are established to improve prognostic accuracy in this population (Level B)."},
+    {"id":"18","topic":"Pediatric therapies","level":["B"],"text":"Clinicians should counsel families that there are no established therapies for children with prolonged DoC (Level B)."}
+  ],
+  "terminology_flags": [
+    {"pattern":"permanent vegetative state","severity":"high","issue":"The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.","rec":"7"},
+    {"pattern":"permanent VS","severity":"high","issue":"The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.","rec":"7"},
+    {"pattern":"persistent vegetative state","severity":"medium","issue":"Legacy terminology. Consider VS/UWS and avoid conflating persistent with permanent.","rec":"7"},
+    {"pattern":"vegetable","severity":"high","issue":"Stigmatizing language. Use person-first language such as 'person with a disorder of consciousness.'","rec":null},
+    {"pattern":"brain dead","severity":"medium","issue":"Brain death is distinct from VS/UWS and MCS. Verify this is not being conflated.","rec":null}
+  ],
+  "contradiction_flags": [
+    {"pattern":"universally poor prognosis","severity":"high","issue":"The guideline states clinicians must avoid statements suggesting universally poor prognosis, especially in the first 28 days.","rec":"3"},
+    {"pattern":"no chance of recovery","severity":"high","issue":"Potentially conflicts with guideline language that prognosis is not universally poor and individual outcomes vary.","rec":"3"},
+    {"pattern":"amantadine cures","severity":"high","issue":"The guideline says amantadine may hasten functional recovery in a defined subgroup; avoid saying it cures DoC.","rec":"14"},
+    {"pattern":"permanent after 3 months","severity":"high","issue":"Use chronic, not permanent. Three months applies to nontraumatic VS/UWS; traumatic VS/UWS uses 12 months.","rec":"7"}
+  ]
+}
