@@ -118,7 +118,7 @@ tab_check, tab_history = st.tabs(['Check a document', 'Previously reviewed'])
 
 with tab_check:
     st.write(
-        'Upload a document (PDF, DOCX, TXT, or MD) and this tool will flag '
+        'Upload a document (PDF, DOCX, PPTX, TXT, or MD) and this tool will flag '
         'places where the content may conflict with the DoC clinical guideline.'
     )
 
@@ -165,3 +165,4 @@ with tab_history:
             selected_entry['coverage'], kb,
             checked_at=selected_entry['checked_at'], key_suffix=f"history_{selected_entry['id']}",
         )
+        
