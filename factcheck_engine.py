@@ -61,6 +61,120 @@ def add_flag(flags, kind, severity, matched, issue, rec, ctx):
     flags.append({'kind': kind, 'severity': severity, 'matched': matched, 'issue': issue, 'rec': rec or '', 'context': ctx})
 
 
+def count_syllables(word):
+    word = word.lower()
+    vowels = 'aeiouy'
+    count = 0
+    prev_vowel = False
+    for ch in word:
+        is_vowel = ch in vowels
+        if is_vowel and not prev_vowel:
+            count += 1
+        prev_vowel = is_vowel
+    if word.endswith('e') and count > 1:
+        count -= 1
+    return max(1, count)
+
+
+ACRONYM_GLOSSARY = {
+    'VS/UWS': 'Vegetative State/Unresponsive Wakefulness Syndrome',
+    'MCS': 'Minimally Conscious State',
+    'DoC': 'Disorders of Consciousness',
+    'CRS-R': 'Coma Recovery Scale-Revised',
+    'DRS': 'Disability Rating Scale',
+    'TBI': 'Traumatic Brain Injury',
+    'SPECT': 'Single Photon Emission Computed Tomography',
+    'PET': 'Positron Emission Tomography',
+    'fMRI': 'functional Magnetic Resonance Imaging',
+    'EEG': 'Electroencephalography',
+    'ERP': 'Event-Related Potential',
+    'SEP': 'Somatosensory Evoked Potential',
+    'TMS': 'Transcranial Magnetic Stimulation',
+    'PCI': 'Perturbational Complexity Index',
+    'EMG': 'Electromyography',
+    'MOLST': 'Medical Orders for Life-Sustaining Treatment',
+}
+
+
+def analyze_clarity(text):
+    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    words = re.findall(r"[A-Za-z']+", text)
+    num_sentences = max(1, len(sentences))
+    num_words = max(1, len(words))
+    syllables = sum(count_syllables(w) for w in words)
+
+    avg_sentence_len = num_words / num_sentences
+    avg_syllables_per_word = syllables / num_words
+
+    flesch_reading_ease = 206.835 - 1.015 * avg_sentence_len - 84.6 * avg_syllables_per_word
+    flesch_kincaid_grade = 0.39 * avg_sentence_len + 11.8 * avg_syllables_per_word - 15.59
+
+    long_sentences = []
+    for s in sentences:
+        wc = len(re.findall(r"[A-Za-z']+", s))
+        if wc > 30:
+            snippet = s.strip()
+            if len(snippet) > 220:
+                snippet = snippet[:220] + '...'
+            long_sentences.append({'text': snippet, 'word_count': wc})
+    long_sentences = long_sentences[:5]
+
+    undefined_acronyms = []
+    for acr, expansion in ACRONYM_GLOSSARY.items():
+        if re.search(r'\b' + re.escape(acr) + r'\b', text):
+            key_words = [w for w in re.findall(r'[A-Za-z]+', expansion) if len(w) > 3]
+            found_expansion = any(re.search(re.escape(w), text, re.IGNORECASE) for w in key_words) if key_words else False
+            if not found_expansion:
+                undefined_acronyms.append({'acronym': acr, 'expansion': expansion})
+
+    passive_matches = re.findall(r'\b(?:is|are|was|were|be|been|being)\s+\w+ed\b', text, re.IGNORECASE)
+    passive_count = len(passive_matches)
+    passive_ratio = passive_count / num_sentences
+
+    suggestions = []
+    if flesch_kincaid_grade > 14:
+        suggestions.append(
+            f"This material reads at roughly a {flesch_kincaid_grade:.1f} grade level (college and above). "
+            "Consider simplifying sentence structure and terminology, especially if patients or families will read it."
+        )
+    elif flesch_kincaid_grade > 10:
+        suggestions.append(
+            f"This material reads at roughly a {flesch_kincaid_grade:.1f} grade level (high school). "
+            "Reasonable for a clinician audience, but may still be dense for family-facing materials."
+        )
+
+    if long_sentences:
+        suggestions.append(
+            f"{len(long_sentences)} sentence(s) exceed 30 words. Consider breaking these into shorter sentences for clarity."
+        )
+
+    if undefined_acronyms:
+        names = ', '.join(a['acronym'] for a in undefined_acronyms[:6])
+        suggestions.append(
+            f"These clinical acronyms appear without being spelled out: {names}. "
+            "Consider defining them on first use for readers unfamiliar with DoC terminology."
+        )
+
+    if passive_ratio > 0.5:
+        suggestions.append(
+            "This material relies heavily on passive voice (e.g., 'was performed' rather than 'the clinician performed'). "
+            "Active voice is often clearer, especially for family-facing materials."
+        )
+
+    if not suggestions:
+        suggestions.append('No major clarity issues detected. Language and structure appear reasonably accessible.')
+
+    return {
+        'flesch_reading_ease': round(flesch_reading_ease, 1),
+        'flesch_kincaid_grade': round(flesch_kincaid_grade, 1),
+        'avg_sentence_length': round(avg_sentence_len, 1),
+        'long_sentences': long_sentences,
+        'undefined_acronyms': undefined_acronyms,
+        'passive_voice_count': passive_count,
+        'suggestions': suggestions,
+    }
+
+
 def run_checks(filepath, kb):
     text = extract_text(filepath)
     flags = []
@@ -144,7 +258,13 @@ def run_checks(filepath, kb):
 
     order = {'high':0, 'medium':1, 'low':2, 'review':3}
     flags.sort(key=lambda x: order.get(x['severity'], 9))
-    return {'filename': os.path.basename(filepath), 'text_length': len(text), 'flags': flags, 'coverage': sorted(set(coverage))}
+    return {
+        'filename': os.path.basename(filepath),
+        'text_length': len(text),
+        'flags': flags,
+        'coverage': sorted(set(coverage)),
+        'clarity': analyze_clarity(text),
+    }
 
 
 def make_report(result, kb, out_path):
