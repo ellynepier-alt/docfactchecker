@@ -1,7 +1,7 @@
 import os, re, json, tempfile
 from docx import Document
 from docx.shared import RGBColor
-from werkzeug.utils import secure_filename
+from docx.oxml.ns import qn
 
 SUPPORTED_EXTS = {'.txt', '.md', '.docx', '.pdf', '.pptx'}
 
@@ -175,6 +175,148 @@ def analyze_clarity(text):
     }
 
 
+def _xml_descendant_attr(element, local_tag, attr):
+    """Find first descendant with the given local (namespace-stripped) tag and return an attribute."""
+    for node in element.iter():
+        tag = node.tag.split('}')[-1] if isinstance(node.tag, str) else ''
+        if tag == local_tag:
+            return node.get(attr)
+    return None
+
+
+def check_accessibility_docx(path):
+    findings = []
+    doc = Document(path)
+
+    total_images = len(doc.inline_shapes)
+    missing_alt = 0
+    for shape in doc.inline_shapes:
+        descr = _xml_descendant_attr(shape._inline, 'docPr', 'descr') or _xml_descendant_attr(shape._inline, 'docPr', 'title')
+        if not descr or not descr.strip():
+            missing_alt += 1
+    if total_images:
+        findings.append({
+            'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'status': 'fail' if missing_alt else 'pass',
+            'detail': f'{missing_alt} of {total_images} image(s) are missing alternative text describing their content.',
+        })
+    else:
+        findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'na', 'detail': 'No images found in this document.'})
+
+    heading_used = any(p.style and p.style.name.startswith('Heading') and p.text.strip() for p in doc.paragraphs)
+    fake_headings = 0
+    for p in doc.paragraphs:
+        if p.style and p.style.name.startswith('Heading'):
+            continue
+        txt = p.text.strip()
+        if txt and len(txt) < 80 and p.runs and all(r.bold for r in p.runs if r.text.strip()):
+            fake_headings += 1
+    findings.append({
+        'check': 'Heading styles used for structure', 'wcag': '1.3.1 Info and Relationships (A) / 2.4.6 Headings and Labels (AA)',
+        'status': 'pass' if heading_used else 'fail',
+        'detail': ('Document uses Word Heading styles, which screen readers rely on for section navigation.' if heading_used
+                   else 'No paragraphs use Word Heading styles, so screen-reader users cannot navigate by section.'),
+    })
+    if fake_headings:
+        findings.append({
+            'check': 'Bold text used in place of headings', 'wcag': '1.3.1 Info and Relationships (Level A)',
+            'status': 'warn', 'detail': f'{fake_headings} short bold line(s) look like section titles but are not tagged with a Heading style, so they are invisible to screen-reader navigation.',
+        })
+
+    tables_total = len(doc.tables)
+    tables_missing_header = 0
+    for t in doc.tables:
+        has_header_flag = False
+        if t.rows:
+            tr = t.rows[0]._tr
+            trPr = tr.find(qn('w:trPr'))
+            if trPr is not None and trPr.find(qn('w:tblHeader')) is not None:
+                has_header_flag = True
+        if not has_header_flag:
+            tables_missing_header += 1
+    if tables_total:
+        findings.append({
+            'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)',
+            'status': 'fail' if tables_missing_header else 'pass',
+            'detail': f'{tables_missing_header} of {tables_total} table(s) have no designated header row, so screen readers cannot announce column context for data cells.',
+        })
+    else:
+        findings.append({'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)', 'status': 'na', 'detail': 'No tables found in this document.'})
+
+    return findings
+
+
+def check_accessibility_pptx(path):
+    from pptx import Presentation
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    findings = []
+    prs = Presentation(path)
+    slides = list(prs.slides)
+
+    total_images = 0
+    missing_alt = 0
+    slides_without_title = 0
+    for slide in slides:
+        has_title = slide.shapes.title is not None and slide.shapes.title.has_text_frame and slide.shapes.title.text_frame.text.strip()
+        if not has_title:
+            slides_without_title += 1
+        for shape in slide.shapes:
+            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                total_images += 1
+                descr = _xml_descendant_attr(shape._element, 'cNvPr', 'descr')
+                if not descr or not descr.strip():
+                    missing_alt += 1
+
+    if total_images:
+        findings.append({
+            'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'status': 'fail' if missing_alt else 'pass',
+            'detail': f'{missing_alt} of {total_images} image(s) are missing alternative text describing their content.',
+        })
+    else:
+        findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'na', 'detail': 'No images found in this presentation.'})
+
+    findings.append({
+        'check': 'Slide titles', 'wcag': '2.4.6 Headings and Labels (AA) / 1.3.1 Info and Relationships (A)',
+        'status': 'fail' if slides_without_title else 'pass',
+        'detail': f'{slides_without_title} of {len(slides)} slide(s) have no title placeholder, which screen readers rely on to announce the topic of each slide.',
+    })
+
+    return findings
+
+
+def check_accessibility_pdf(path):
+    return [
+        {
+            'check': 'Tagged PDF structure', 'wcag': '1.3.1 Info and Relationships (A) / 4.1.2 Name, Role, Value (A)',
+            'status': 'manual',
+            'detail': "Automatic tag detection isn't available in this tool. Verify this PDF is tagged (e.g., with Acrobat's Accessibility Checker) so screen readers can interpret headings, tables, and reading order.",
+        },
+        {
+            'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'status': 'manual',
+            'detail': "PDF image alt text can't be reliably verified automatically here. Check with Acrobat's Accessibility Checker.",
+        },
+    ]
+
+
+def check_accessibility(path, text):
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.docx':
+        findings = check_accessibility_docx(path)
+    elif ext == '.pptx':
+        findings = check_accessibility_pptx(path)
+    elif ext == '.pdf':
+        findings = check_accessibility_pdf(path)
+    else:
+        findings = [{
+            'check': 'Format limitations', 'wcag': 'N/A', 'status': 'na',
+            'detail': 'Plain text/Markdown files have no document-structure accessibility concerns beyond readability (see Clarity section above).',
+        }]
+    return findings
+
+
 def run_checks(filepath, kb):
     text = extract_text(filepath)
     flags = []
@@ -264,6 +406,7 @@ def run_checks(filepath, kb):
         'flags': flags,
         'coverage': sorted(set(coverage)),
         'clarity': analyze_clarity(text),
+        'accessibility': check_accessibility(filepath, text),
     }
 
 
