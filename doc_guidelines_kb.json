@@ -54,5 +54,18 @@
     {"id":"spect-timing","fact":"SPECT scan should be performed 1-2 months post injury in traumatic VS/UWS.","rec":["5"]},
     {"id":"crs-r-cutoff","fact":"A CRS-R score of 6 or higher, obtained more than 1 month after onset, is associated with increased likelihood of recovery of consciousness by 24 months in nontraumatic post-anoxic VS/UWS.","rec":["6"]},
     {"id":"sep-nontraumatic","fact":"Presence of SEPs from bilateral median nerve stimulation is associated with increased likelihood of recovery of responsiveness by 24 months in nontraumatic post-anoxic VS/UWS.","rec":["6"]}
+  ],
+  "terminology_definitions": [
+    {"term":"Coma","definition":"A state of complete unconsciousness with no evidence of wakefulness (eyes remain continuously closed) or self/environmental awareness."},
+    {"term":"Vegetative state (VS) / unresponsive wakefulness syndrome (UWS)","definition":"Spontaneous eye-opening signaling wakefulness, but no evidence of purposeful behavior suggesting awareness of self or environment."},
+    {"term":"Persistent vegetative state (PVS)","definition":"Diagnostic term for VS/UWS lasting more than 1 month following TBI or non-TBI. This does NOT by itself imply irreversibility."},
+    {"term":"Permanent vegetative state","definition":"Prognostic term applied 3 months after nontraumatic VS and 12 months after traumatic VS, indicating a high probability of irreversibility. Distinct from 'persistent' VS."},
+    {"term":"Minimally conscious state (MCS)","definition":"Severely altered consciousness with definite, but often subtle and inconsistent, behavioral evidence of self or environmental awareness."},
+    {"term":"MCS+","definition":"Subcategory of MCS defined by behavioral evidence of preserved receptive language function (e.g., command following, intelligible speech)."},
+    {"term":"MCS-","definition":"Subcategory of MCS defined by nonlinguistic signs of conscious awareness only (automatic movements, object manipulation, localizing limb/eye movements, visual fixation or pursuit, affective behaviors relevant to stimuli) — without command following or intelligible speech."},
+    {"term":"Emergence from MCS (EMCS)","definition":"Recovery of reliable communication (verbal or gestural yes/no responses) OR functional object use, defined as demonstrated instrumental use of at least 2 different familiar objects."},
+    {"term":"Recovery of consciousness","definition":"Reemergence of reproducible behavioral evidence of at least 1 feature of MCS, signaling the transition from coma or VS/UWS to MCS. Distinct from emergence from MCS (EMCS), which is a later transition."},
+    {"term":"Posttraumatic confusional state (PTCS)","definition":"Altered consciousness after TBI with impaired attention, impaired encoding/retrieval of recent experience, impaired orientation, and symptom fluctuation — all features present together."},
+    {"term":"Locked-in syndrome","definition":"A distinct neurologic syndrome (tetraplegia, anarthria, near-normal to normal cognition) usually from a ventral pons lesion. Loss of speech/motor function with spontaneous eye-opening can lead to misdiagnosis as VS/UWS; it is not a disorder of consciousness."}
   ]
 }
