@@ -49,6 +49,7 @@ def add_history_entry(filename, result, counts):
         'flags': result['flags'],
         'coverage': result['coverage'],
         'clarity': result['clarity'],
+        'accessibility': result['accessibility'],
     }
     entries.insert(0, entry)
     save_history(entries)
@@ -67,6 +68,13 @@ def default_clarity():
     }
 
 
+def default_accessibility():
+    return [{
+        'check': 'Not available', 'wcag': 'N/A', 'status': 'na',
+        'detail': 'Section 508 accessibility analysis was not available when this material was originally checked. Re-run the check to generate it.',
+    }]
+
+
 def counts_from_flags(flags):
     counts = {s: 0 for s in ['high', 'medium', 'low', 'review']}
     for flag in flags:
@@ -77,7 +85,7 @@ def counts_from_flags(flags):
 # ---------------------------------------------------------------------------
 # Shared rendering for a result (used for both fresh checks and history)
 # ---------------------------------------------------------------------------
-def render_result(filename, counts, flags, coverage, clarity, kb, checked_at=None, key_suffix=None):
+def render_result(filename, counts, flags, coverage, clarity, accessibility, kb, checked_at=None, key_suffix=None):
     caption = filename if not checked_at else f'{filename} — checked {checked_at}'
     st.subheader(caption)
 
@@ -113,6 +121,21 @@ def render_result(filename, counts, flags, coverage, clarity, kb, checked_at=Non
     ]
     st.dataframe(coverage_rows, use_container_width=True, hide_index=True)
 
+    st.markdown('#### Section 508 / accessibility check')
+    status_icons = {'pass': '✅', 'fail': '❌', 'warn': '⚠️', 'na': 'ℹ️', 'manual': '🔍'}
+    a11y_rows = [
+        {
+            '': status_icons.get(f['status'], ''),
+            'Check': f['check'],
+            'WCAG criterion': f['wcag'],
+            'Finding': f['detail'],
+        }
+        for f in accessibility
+    ]
+    st.dataframe(a11y_rows, use_container_width=True, hide_index=True)
+    if any(f['status'] == 'manual' for f in accessibility):
+        st.caption('🔍 = requires manual verification with a dedicated accessibility checker (e.g., Acrobat).')
+
     st.markdown('#### Clarity & understandability suggestions')
     c1, c2, c3 = st.columns(3)
     c1.metric('Reading grade level', clarity['flesch_kincaid_grade'] if clarity['flesch_kincaid_grade'] is not None else 'N/A')
@@ -120,7 +143,10 @@ def render_result(filename, counts, flags, coverage, clarity, kb, checked_at=Non
     c3.metric('Avg. sentence length', f"{clarity['avg_sentence_length']} words" if clarity['avg_sentence_length'] is not None else 'N/A')
 
     for suggestion in clarity['suggestions']:
-        st.warning(suggestion) if 'No major clarity issues' not in suggestion else st.success(suggestion)
+        if 'No major clarity issues' in suggestion:
+            st.success(suggestion)
+        else:
+            st.warning(suggestion)
 
     if clarity['long_sentences']:
         with st.expander(f"Long sentences ({len(clarity['long_sentences'])})"):
@@ -173,7 +199,8 @@ with tab_check:
 
                 st.success('Fact-check complete — saved to "Previously reviewed."')
                 render_result(
-                    entry['filename'], entry['counts'], entry['flags'], entry['coverage'], entry['clarity'], kb,
+                    entry['filename'], entry['counts'], entry['flags'], entry['coverage'],
+                    entry['clarity'], entry['accessibility'], kb,
                     checked_at=entry['checked_at'], key_suffix=f"check_{entry['id']}",
                 )
 
@@ -194,6 +221,7 @@ with tab_history:
 
         render_result(
             selected_entry['filename'], selected_entry['counts'], selected_entry['flags'],
-            selected_entry['coverage'], selected_entry.get('clarity', default_clarity()), kb,
+            selected_entry['coverage'], selected_entry.get('clarity', default_clarity()),
+            selected_entry.get('accessibility', default_accessibility()), kb,
             checked_at=selected_entry['checked_at'], key_suffix=f"history_{selected_entry['id']}",
         )
