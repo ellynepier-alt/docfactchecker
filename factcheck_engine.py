@@ -337,17 +337,21 @@ def check_accessibility_docx(path):
     images = get_docx_images(doc)
     total_images, missing_alt, poor_alt, alt_feedback = assess_image_alt_quality(images)
     if total_images:
+        compliant_images = total_images - missing_alt - poor_alt
+        pct = round(100 * compliant_images / total_images)
         findings.append({
             'check': 'Image alternative text (OCR-verified)', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'category': 'Images', 'percent': pct,
             'status': 'fail' if (missing_alt or poor_alt) else 'pass',
-            'detail': f'{missing_alt} of {total_images} image(s) are missing alt text; {poor_alt} have alt text that is generic or does not match the image\'s actual visible content (checked via OCR).',
+            'detail': f'{compliant_images} of {total_images} image(s) ({pct}%) have adequate alt text; {missing_alt} missing, {poor_alt} generic or mismatched with the image\'s actual visible content (checked via OCR).',
         })
         for fb in alt_feedback[:8]:
             findings.append({'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb})
     else:
-        findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'na', 'detail': 'No images found in this document.'})
+        findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'category': 'Images', 'percent': None, 'status': 'na', 'detail': 'No images found in this document.'})
 
     heading_used = any(p.style and p.style.name.startswith('Heading') and p.text.strip() for p in doc.paragraphs)
+    real_headings = sum(1 for p in doc.paragraphs if p.style and p.style.name.startswith('Heading') and p.text.strip())
     fake_headings = 0
     for p in doc.paragraphs:
         if p.style and p.style.name.startswith('Heading'):
@@ -355,8 +359,11 @@ def check_accessibility_docx(path):
         txt = p.text.strip()
         if txt and len(txt) < 80 and p.runs and all(r.bold for r in p.runs if r.text.strip()):
             fake_headings += 1
+    heading_total = real_headings + fake_headings
+    heading_pct = round(100 * real_headings / heading_total) if heading_total else (100 if heading_used else None)
     findings.append({
         'check': 'Heading styles used for structure', 'wcag': '1.3.1 Info and Relationships (A) / 2.4.6 Headings and Labels (AA)',
+        'category': 'Headings & structure', 'percent': heading_pct,
         'status': 'pass' if heading_used else 'fail',
         'detail': ('Document uses Word Heading styles, which screen readers rely on for section navigation.' if heading_used
                    else 'No paragraphs use Word Heading styles, so screen-reader users cannot navigate by section.'),
@@ -379,24 +386,30 @@ def check_accessibility_docx(path):
         if not has_header_flag:
             tables_missing_header += 1
     if tables_total:
+        tables_compliant = tables_total - tables_missing_header
+        pct = round(100 * tables_compliant / tables_total)
         findings.append({
             'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)',
+            'category': 'Tables', 'percent': pct,
             'status': 'fail' if tables_missing_header else 'pass',
-            'detail': f'{tables_missing_header} of {tables_total} table(s) have no designated header row, so screen readers cannot announce column context for data cells.',
+            'detail': f'{tables_compliant} of {tables_total} table(s) ({pct}%) have a designated header row; {tables_missing_header} do not, so screen readers cannot announce column context for those data cells.',
         })
     else:
-        findings.append({'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)', 'status': 'na', 'detail': 'No tables found in this document.'})
+        findings.append({'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)', 'category': 'Tables', 'percent': None, 'status': 'na', 'detail': 'No tables found in this document.'})
 
     total_links, bad_links = check_docx_link_text(doc)
     if total_links:
+        good_links = total_links - len(bad_links)
+        pct = round(100 * good_links / total_links)
         findings.append({
             'check': 'Meaningful link text', 'wcag': '2.4.4 Link Purpose in Context (Level A)',
+            'category': 'Links', 'percent': pct,
             'status': 'fail' if bad_links else 'pass',
-            'detail': (f'{len(bad_links)} of {total_links} link(s) use generic text like "{bad_links[0]}" that gives no context out of place — screen-reader users often navigate by a list of links alone.' if bad_links
-                       else f'All {total_links} link(s) use descriptive text.'),
+            'detail': (f'{good_links} of {total_links} link(s) ({pct}%) use descriptive text; {len(bad_links)} use generic text like "{bad_links[0]}" that gives no context out of place — screen-reader users often navigate by a list of links alone.' if bad_links
+                       else f'All {total_links} link(s) ({pct}%) use descriptive text.'),
         })
     else:
-        findings.append({'check': 'Meaningful link text', 'wcag': '2.4.4 Link Purpose in Context (Level A)', 'status': 'na', 'detail': 'No hyperlinks found in this document.'})
+        findings.append({'check': 'Meaningful link text', 'wcag': '2.4.4 Link Purpose in Context (Level A)', 'category': 'Links', 'percent': None, 'status': 'na', 'detail': 'No hyperlinks found in this document.'})
 
     return findings
 
@@ -417,20 +430,26 @@ def check_accessibility_pptx(path):
     images = get_pptx_images(prs)
     total_images, missing_alt, poor_alt, alt_feedback = assess_image_alt_quality(images)
     if total_images:
+        compliant_images = total_images - missing_alt - poor_alt
+        pct = round(100 * compliant_images / total_images)
         findings.append({
             'check': 'Image alternative text (OCR-verified)', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'category': 'Images', 'percent': pct,
             'status': 'fail' if (missing_alt or poor_alt) else 'pass',
-            'detail': f'{missing_alt} of {total_images} image(s) are missing alt text; {poor_alt} have alt text that is generic or does not match the image\'s actual visible content (checked via OCR).',
+            'detail': f'{compliant_images} of {total_images} image(s) ({pct}%) have adequate alt text; {missing_alt} missing, {poor_alt} generic or mismatched with the image\'s actual visible content (checked via OCR).',
         })
         for fb in alt_feedback[:8]:
             findings.append({'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb})
     else:
-        findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'na', 'detail': 'No images found in this presentation.'})
+        findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'category': 'Images', 'percent': None, 'status': 'na', 'detail': 'No images found in this presentation.'})
 
+    slides_with_title = len(slides) - slides_without_title
+    slide_pct = round(100 * slides_with_title / len(slides)) if slides else None
     findings.append({
         'check': 'Slide titles', 'wcag': '2.4.6 Headings and Labels (AA) / 1.3.1 Info and Relationships (A)',
+        'category': 'Slide titles', 'percent': slide_pct,
         'status': 'fail' if slides_without_title else 'pass',
-        'detail': f'{slides_without_title} of {len(slides)} slide(s) have no title placeholder, which screen readers rely on to announce the topic of each slide.',
+        'detail': f'{slides_with_title} of {len(slides)} slide(s) ({slide_pct}%) have a title placeholder; {slides_without_title} do not, so screen readers cannot announce the topic of those slides.',
     })
 
     return findings
@@ -488,30 +507,35 @@ SCORED_ACCESSIBILITY_CHECKS = {
 
 
 def compute_accessibility_score(findings):
-    pass_n = warn_n = fail_n = 0
+    categories = []
     for f in findings:
         if f['check'] not in SCORED_ACCESSIBILITY_CHECKS:
             continue
-        if f['status'] == 'pass':
-            pass_n += 1
-        elif f['status'] == 'warn':
-            warn_n += 1
-        elif f['status'] == 'fail':
-            fail_n += 1
-        # 'na' and 'manual' are excluded — not automatically determinable either way.
+        pct = f.get('percent')
+        if pct is None:
+            # Fallback for checks without a granular percent (e.g. tagged-PDF, which is
+            # inherently binary/manual) — treat pass/fail as 100/0, skip na/manual entirely.
+            if f['status'] == 'pass':
+                pct = 100
+            elif f['status'] == 'fail':
+                pct = 0
+            elif f['status'] == 'warn':
+                pct = 50
+            else:
+                continue
+        categories.append({'category': f.get('category', f['check']), 'percent': pct})
 
-    total = pass_n + warn_n + fail_n
-    if total == 0:
-        return {'score': None, 'zone': None}
+    if not categories:
+        return {'score': None, 'zone': None, 'breakdown': []}
 
-    score = round(100 * (pass_n + 0.5 * warn_n) / total)
+    score = round(sum(c['percent'] for c in categories) / len(categories))
     if score >= 90:
         zone = 'green'
     elif score >= 70:
         zone = 'yellow'
     else:
         zone = 'red'
-    return {'score': score, 'zone': zone}
+    return {'score': score, 'zone': zone, 'breakdown': categories}
 
 
 def run_checks(filepath, kb):
