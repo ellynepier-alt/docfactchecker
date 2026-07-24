@@ -88,7 +88,7 @@ def default_accessibility_score():
 
 
 def counts_from_flags(flags):
-    counts = {s: 0 for s in ['high', 'medium', 'low', 'review']}
+    counts = {s: 0 for s in ['high', 'medium', 'low']}
     for flag in flags:
         counts[flag['severity']] = counts.get(flag['severity'], 0) + 1
     return counts
@@ -106,11 +106,12 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
 
     st.caption(f"Guideline: {kb['meta']['title']} ({kb['meta']['year']}) — {kb['meta']['citation']}")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     col1.metric('High', counts['high'])
     col2.metric('Medium', counts['medium'])
     col3.metric('Low', counts['low'])
-    col4.metric('Review', counts['review'])
+
+    rec_by_id = {rec['id']: rec for rec in kb['recommendations']}
 
     st.markdown('#### Flags')
     if not flags:
@@ -120,7 +121,20 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
             with st.expander(f"[{flag['severity'].upper()}] {flag['kind']} — {flag['matched']}"):
                 st.write(f"**Issue:** {flag['issue']}")
                 if flag['rec']:
-                    st.write(f"**Related recommendation:** {flag['rec']}")
+                    rec = rec_by_id.get(flag['rec'])
+                    if rec:
+                        level = '/'.join(rec['level'])
+                        st.write(f"**Related recommendation:** Recommendation {rec['id']} — {rec['topic']} (Level {level})")
+                        st.write(f"**Guideline text:** {rec['text']}")
+                        pages = []
+                        if rec.get('summary_page'):
+                            pages.append(f"p. {rec['summary_page']} (recommendations summary)")
+                        if rec.get('detail_page'):
+                            pages.append(f"p. {rec['detail_page']} (detailed rationale)")
+                        page_str = '; '.join(pages)
+                        st.caption(f"Source: {kb['meta']['citation']}" + (f" — {page_str}" if page_str else ""))
+                    else:
+                        st.write(f"**Related recommendation:** {flag['rec']}")
                 if flag['context']:
                     st.caption(f"Context: {flag['context']}")
 
@@ -139,14 +153,11 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
     st.markdown('#### Section 508 / accessibility check')
 
     score = accessibility_score.get('score') if accessibility_score else None
-    zone = accessibility_score.get('zone') if accessibility_score else None
     breakdown = accessibility_score.get('breakdown', []) if accessibility_score else []
     if score is not None:
-        zone_display = {'green': '🟢 Green — looks solid', 'yellow': '🟡 Yellow — needs some attention', 'red': '🔴 Red — significant issues'}
         sc1, sc2 = st.columns([1, 3])
         sc1.metric('Overall Section 508 compliance', f'{score}%')
         with sc2:
-            st.write(zone_display.get(zone, ''))
             st.progress(score / 100)
 
         if breakdown:
