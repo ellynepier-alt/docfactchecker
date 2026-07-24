@@ -11,6 +11,89 @@ def load_kb(path):
         return json.load(f)
 
 
+def ocr_image_bytes(image_bytes):
+    """Run OCR on raw image bytes; return empty string on any failure (corrupt/unsupported image, no OCR engine, etc.)."""
+    try:
+        import pytesseract
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(image_bytes))
+        return pytesseract.image_to_string(img).strip()
+    except Exception:
+        return ''
+
+
+def get_docx_images(doc):
+    """Return [{'alt': str|None, 'ocr_text': str}] for every image in the document,
+    including images inside floating text boxes/diagrams (which live under
+    wp:anchor rather than wp:inline)."""
+    images = []
+    for blip in doc.element.body.iter(qn('a:blip')):
+        rId = blip.get(qn('r:embed'))
+        if not rId:
+            continue
+        # Walk up to the wp:inline or wp:anchor container, which holds the docPr (alt text) sibling.
+        container = blip
+        alt = None
+        for _ in range(10):
+            container = container.getparent()
+            if container is None:
+                break
+            tag = container.tag.split('}')[-1]
+            if tag in ('inline', 'anchor'):
+                alt = _xml_descendant_attr(container, 'docPr', 'descr') or _xml_descendant_attr(container, 'docPr', 'title')
+                break
+        ocr_text = ''
+        try:
+            part = doc.part.related_parts[rId]
+            ocr_text = ocr_image_bytes(part.blob)
+        except Exception:
+            pass
+        images.append({'alt': alt, 'ocr_text': ocr_text})
+    return images
+
+
+def get_pptx_images(prs):
+    """Return [{'alt': str|None, 'ocr_text': str}] for every picture shape, recursing into groups."""
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    images = []
+
+    def walk(shapes):
+        for shape in shapes:
+            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                alt = _xml_descendant_attr(shape._element, 'cNvPr', 'descr')
+                ocr_text = ''
+                try:
+                    ocr_text = ocr_image_bytes(shape.image.blob)
+                except Exception:
+                    pass
+                images.append({'alt': alt, 'ocr_text': ocr_text})
+            elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                walk(shape.shapes)
+
+    for slide in prs.slides:
+        walk(slide.shapes)
+    return images
+
+
+def get_pdf_images(path):
+    """Return [str] of OCR'd text for every embedded image in a PDF (no alt-text concept in plain PDF)."""
+    import fitz
+    texts = []
+    doc = fitz.open(path)
+    for page in doc:
+        for img in page.get_images(full=True):
+            xref = img[0]
+            try:
+                base = doc.extract_image(xref)
+                ocr_text = ocr_image_bytes(base['image'])
+                if ocr_text:
+                    texts.append(ocr_text)
+            except Exception:
+                continue
+    return texts
+
+
 def extract_docx_textboxes(doc):
     """Text inside floating text boxes (e.g., diagram/decision-tree shapes) lives in
     <w:txbxContent> elements nested inside drawings, which doc.paragraphs/doc.tables
@@ -41,11 +124,14 @@ def extract_text(path):
                     if cell.text.strip():
                         chunks.append(cell.text)
         chunks.extend(extract_docx_textboxes(doc))
+        chunks.extend(img['ocr_text'] for img in get_docx_images(doc) if img['ocr_text'])
         return '\n'.join(chunks)
     if ext == '.pdf':
         import fitz
         doc = fitz.open(path)
-        return '\n'.join(page.get_text() for page in doc)
+        chunks = [page.get_text() for page in doc]
+        chunks.extend(get_pdf_images(path))
+        return '\n'.join(chunks)
     if ext == '.pptx':
         from pptx import Presentation
         prs = Presentation(path)
@@ -64,6 +150,7 @@ def extract_text(path):
                                 chunks.append(cell.text)
                 if shape.has_chart:
                     continue
+        chunks.extend(img['ocr_text'] for img in get_pptx_images(prs) if img['ocr_text'])
         return '\n'.join(chunks)
     raise ValueError('Unsupported file type')
 
@@ -201,22 +288,62 @@ def _xml_descendant_attr(element, local_tag, attr):
     return None
 
 
+def assess_image_alt_quality(images):
+    """images: list of {'alt': str|None, 'ocr_text': str}. Returns (total, missing, poor, feedback[])."""
+    generic_terms = {'image', 'picture', 'photo', 'graphic', 'img', 'untitled', 'diagram', 'chart', 'picture1', 'graphic1'}
+    total = len(images)
+    missing = 0
+    poor = 0
+    feedback = []
+    for im in images:
+        alt = (im.get('alt') or '').strip()
+        ocr = (im.get('ocr_text') or '').strip()
+        if not alt:
+            missing += 1
+            if ocr:
+                snippet = ocr[:150].replace('\n', ' ')
+                feedback.append(f'Missing alt text on an image that contains readable text: "{snippet}" — consider using this (or a summary of it) as the alt text.')
+            else:
+                feedback.append('Missing alt text on an image with no machine-readable text detected — add a description of what the image depicts.')
+        elif alt.lower().strip('.') in generic_terms or len(alt) < 4:
+            poor += 1
+            feedback.append(f'Alt text "{alt}" is too generic to convey meaning to screen-reader users.')
+        elif ocr and len(ocr) > 15:
+            ocr_words = set(re.findall(r'[a-z]{4,}', ocr.lower()))
+            alt_words = set(re.findall(r'[a-z]{4,}', alt.lower()))
+            if ocr_words and not (ocr_words & alt_words):
+                poor += 1
+                preview = ocr[:100].replace('\n', ' ')
+                feedback.append(f'Alt text "{alt}" does not appear to reflect the visible text in the image ("{preview}..."). Screen-reader users may miss this information entirely.')
+    return total, missing, poor, feedback
+
+
+def check_docx_link_text(doc):
+    generic_texts = {'click here', 'here', 'more', 'read more', 'link', 'this link', 'click', 'learn more', 'more info', 'info'}
+    total_links = 0
+    bad_links = []
+    for hyperlink in doc.element.body.iter(qn('w:hyperlink')):
+        total_links += 1
+        text = ''.join(t.text or '' for t in hyperlink.iter(qn('w:t'))).strip()
+        if text.lower() in generic_texts:
+            bad_links.append(text)
+    return total_links, bad_links
+
+
 def check_accessibility_docx(path):
     findings = []
     doc = Document(path)
 
-    total_images = len(doc.inline_shapes)
-    missing_alt = 0
-    for shape in doc.inline_shapes:
-        descr = _xml_descendant_attr(shape._inline, 'docPr', 'descr') or _xml_descendant_attr(shape._inline, 'docPr', 'title')
-        if not descr or not descr.strip():
-            missing_alt += 1
+    images = get_docx_images(doc)
+    total_images, missing_alt, poor_alt, alt_feedback = assess_image_alt_quality(images)
     if total_images:
         findings.append({
-            'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
-            'status': 'fail' if missing_alt else 'pass',
-            'detail': f'{missing_alt} of {total_images} image(s) are missing alternative text describing their content.',
+            'check': 'Image alternative text (OCR-verified)', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'status': 'fail' if (missing_alt or poor_alt) else 'pass',
+            'detail': f'{missing_alt} of {total_images} image(s) are missing alt text; {poor_alt} have alt text that is generic or does not match the image\'s actual visible content (checked via OCR).',
         })
+        for fb in alt_feedback[:8]:
+            findings.append({'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb})
     else:
         findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'na', 'detail': 'No images found in this document.'})
 
@@ -260,37 +387,43 @@ def check_accessibility_docx(path):
     else:
         findings.append({'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)', 'status': 'na', 'detail': 'No tables found in this document.'})
 
+    total_links, bad_links = check_docx_link_text(doc)
+    if total_links:
+        findings.append({
+            'check': 'Meaningful link text', 'wcag': '2.4.4 Link Purpose in Context (Level A)',
+            'status': 'fail' if bad_links else 'pass',
+            'detail': (f'{len(bad_links)} of {total_links} link(s) use generic text like "{bad_links[0]}" that gives no context out of place — screen-reader users often navigate by a list of links alone.' if bad_links
+                       else f'All {total_links} link(s) use descriptive text.'),
+        })
+    else:
+        findings.append({'check': 'Meaningful link text', 'wcag': '2.4.4 Link Purpose in Context (Level A)', 'status': 'na', 'detail': 'No hyperlinks found in this document.'})
+
     return findings
 
 
 def check_accessibility_pptx(path):
     from pptx import Presentation
-    from pptx.enum.shapes import MSO_SHAPE_TYPE
 
     findings = []
     prs = Presentation(path)
     slides = list(prs.slides)
 
-    total_images = 0
-    missing_alt = 0
     slides_without_title = 0
     for slide in slides:
         has_title = slide.shapes.title is not None and slide.shapes.title.has_text_frame and slide.shapes.title.text_frame.text.strip()
         if not has_title:
             slides_without_title += 1
-        for shape in slide.shapes:
-            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-                total_images += 1
-                descr = _xml_descendant_attr(shape._element, 'cNvPr', 'descr')
-                if not descr or not descr.strip():
-                    missing_alt += 1
 
+    images = get_pptx_images(prs)
+    total_images, missing_alt, poor_alt, alt_feedback = assess_image_alt_quality(images)
     if total_images:
         findings.append({
-            'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
-            'status': 'fail' if missing_alt else 'pass',
-            'detail': f'{missing_alt} of {total_images} image(s) are missing alternative text describing their content.',
+            'check': 'Image alternative text (OCR-verified)', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'status': 'fail' if (missing_alt or poor_alt) else 'pass',
+            'detail': f'{missing_alt} of {total_images} image(s) are missing alt text; {poor_alt} have alt text that is generic or does not match the image\'s actual visible content (checked via OCR).',
         })
+        for fb in alt_feedback[:8]:
+            findings.append({'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb})
     else:
         findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'na', 'detail': 'No images found in this presentation.'})
 
@@ -304,18 +437,28 @@ def check_accessibility_pptx(path):
 
 
 def check_accessibility_pdf(path):
-    return [
+    findings = [
         {
             'check': 'Tagged PDF structure', 'wcag': '1.3.1 Info and Relationships (A) / 4.1.2 Name, Role, Value (A)',
             'status': 'manual',
             'detail': "Automatic tag detection isn't available in this tool. Verify this PDF is tagged (e.g., with Acrobat's Accessibility Checker) so screen readers can interpret headings, tables, and reading order.",
         },
-        {
+    ]
+    image_texts = get_pdf_images(path)
+    if image_texts:
+        preview = image_texts[0][:150].replace('\n', ' ')
+        findings.append({
             'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
             'status': 'manual',
-            'detail': "PDF image alt text can't be reliably verified automatically here. Check with Acrobat's Accessibility Checker.",
-        },
-    ]
+            'detail': f'{len(image_texts)} image(s) contain machine-readable text (e.g., "{preview}..."). This text has been included in the fact-check, but PDF alt-text tagging still needs manual verification (e.g., with Acrobat\'s Accessibility Checker).',
+        })
+    else:
+        findings.append({
+            'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
+            'status': 'manual',
+            'detail': "No machine-readable text was detected in this PDF's images. Alt-text tagging still can't be reliably verified automatically — check with Acrobat's Accessibility Checker.",
+        })
+    return findings
 
 
 def check_accessibility(path, text):
