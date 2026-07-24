@@ -376,6 +376,7 @@ def check_accessibility_docx(path):
 
     tables_total = len(doc.tables)
     tables_missing_header = 0
+    tables_visual_only = 0
     for t in doc.tables:
         has_header_flag = False
         if t.rows:
@@ -385,14 +386,24 @@ def check_accessibility_docx(path):
                 has_header_flag = True
         if not has_header_flag:
             tables_missing_header += 1
+            tblPr = t._tbl.find(qn('w:tblPr'))
+            tblLook = tblPr.find(qn('w:tblLook')) if tblPr is not None else None
+            first_row_style = tblLook is not None and tblLook.get(qn('w:firstRow')) == '1'
+            if first_row_style:
+                tables_visual_only += 1
     if tables_total:
         tables_compliant = tables_total - tables_missing_header
         pct = round(100 * tables_compliant / tables_total)
+        detail = f'{tables_compliant} of {tables_total} table(s) ({pct}%) have a designated header row; {tables_missing_header} do not, so screen readers cannot announce column context for those data cells.'
+        if tables_visual_only:
+            detail += (f' Note: {tables_visual_only} of the non-compliant table(s) use the "Header Row" table-style option, which only changes visual '
+                       f'formatting (bold/shading) — it does NOT mark the row as an accessible header. To fix: select the header row → Table Properties → '
+                       f'Row tab → check "Repeat as header row at the top of each page."')
         findings.append({
             'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)',
             'category': 'Tables', 'percent': pct,
             'status': 'fail' if tables_missing_header else 'pass',
-            'detail': f'{tables_compliant} of {tables_total} table(s) ({pct}%) have a designated header row; {tables_missing_header} do not, so screen readers cannot announce column context for those data cells.',
+            'detail': detail,
         })
     else:
         findings.append({'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)', 'category': 'Tables', 'percent': None, 'status': 'na', 'detail': 'No tables found in this document.'})
@@ -559,7 +570,7 @@ def run_checks(filepath, kb):
             dose = m.group(1)
             if dose not in ['100', '200']:
                 add_flag(flags, 'Key fact mismatch', 'high', f'amantadine {dose} mg', 'Guideline dose is amantadine 100-200 mg twice daily.', '14', context(norm, m.start(), m.end()))
-        add_flag(flags, 'Key fact to verify', 'review', 'amantadine', 'Confirm the material states: amantadine applies to traumatic VS/UWS or MCS patients 4-16 weeks post injury, 100-200 mg twice daily.', '14', 'Material mentions amantadine.')
+        # (Amantadine mention no longer flagged for review — only explicit dose/window mismatches above are flagged.)
 
     for m in re.finditer(r'(?<!non)(?<!non-)traumatic[^.]{0,90}?3\s*month', norm):
         add_flag(flags, 'Key fact mismatch', 'high', 'traumatic ... 3 months', 'Three months applies to nontraumatic VS/UWS; traumatic VS/UWS uses 12 months.', '7', context(norm, m.start(), m.end()))
@@ -711,7 +722,7 @@ def run_checks(filepath, kb):
         if any(w in low for w in topic_words):
             coverage.append(rec['id'])
 
-    order = {'high':0, 'medium':1, 'low':2, 'review':3}
+    order = {'high':0, 'medium':1, 'low':2}
     seen = set()
     deduped_flags = []
     for f in flags:
@@ -742,16 +753,16 @@ def make_report(result, kb, out_path):
     doc.add_paragraph(kb['meta']['citation'])
     doc.add_paragraph('This is a human-in-the-loop review aid. Flags identify candidates for review, not final clinical judgments.')
 
-    counts = {s: 0 for s in ['high', 'medium', 'low', 'review']}
+    counts = {s: 0 for s in ['high', 'medium', 'low']}
     for f in result['flags']:
         counts[f['severity']] = counts.get(f['severity'], 0) + 1
     doc.add_heading('Summary', level=1)
-    doc.add_paragraph(f"High: {counts['high']} | Medium: {counts['medium']} | Low: {counts['low']} | Review: {counts['review']}")
+    doc.add_paragraph(f"High: {counts['high']} | Medium: {counts['medium']} | Low: {counts['low']}")
 
     doc.add_heading('Flags', level=1)
     if not result['flags']:
         doc.add_paragraph('No flags raised. Human review is still recommended.')
-    colors = {'high': RGBColor(192,0,0), 'medium': RGBColor(199,106,0), 'low': RGBColor(127,106,0), 'review': RGBColor(31,78,121)}
+    colors = {'high': RGBColor(192,0,0), 'medium': RGBColor(199,106,0), 'low': RGBColor(127,106,0)}
     for f in result['flags']:
         p = doc.add_paragraph(style='List Bullet')
         r = p.add_run(f"[{f['severity'].upper()}] {f['kind']}")
