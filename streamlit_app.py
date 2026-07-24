@@ -136,6 +136,14 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, kb,
     if any(f['status'] == 'manual' for f in accessibility):
         st.caption('🔍 = requires manual verification with a dedicated accessibility checker (e.g., Acrobat).')
 
+    with st.expander('General accessibility checklist (WCAG POUR principles)'):
+        st.caption('Reference guidance for anything not automatically checkable above — useful when writing feedback for authors.')
+        checklist_rows = [
+            {'Principle': c['principle'], 'Guidance': c['item'], 'WCAG': c['wcag']}
+            for c in kb.get('accessibility_checklist', [])
+        ]
+        st.dataframe(checklist_rows, use_container_width=True, hide_index=True)
+
     st.markdown('#### Clarity & understandability suggestions')
     c1, c2, c3 = st.columns(3)
     c1.metric('Reading grade level', clarity['flesch_kincaid_grade'] if clarity['flesch_kincaid_grade'] is not None else 'N/A')
