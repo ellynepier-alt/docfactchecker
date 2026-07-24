@@ -84,7 +84,7 @@ def default_accessibility():
 
 
 def default_accessibility_score():
-    return {'score': None, 'zone': None}
+    return {'score': None, 'zone': None, 'breakdown': []}
 
 
 def counts_from_flags(flags):
@@ -140,14 +140,24 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
 
     score = accessibility_score.get('score') if accessibility_score else None
     zone = accessibility_score.get('zone') if accessibility_score else None
+    breakdown = accessibility_score.get('breakdown', []) if accessibility_score else []
     if score is not None:
         zone_display = {'green': '🟢 Green — looks solid', 'yellow': '🟡 Yellow — needs some attention', 'red': '🔴 Red — significant issues'}
         sc1, sc2 = st.columns([1, 3])
-        sc1.metric('Section 508 compliance score', f'{score}%')
+        sc1.metric('Overall Section 508 compliance', f'{score}%')
         with sc2:
             st.write(zone_display.get(zone, ''))
             st.progress(score / 100)
-        st.caption('Score reflects only the automatically-checkable items below (alt text, headings, table headers, link text, slide titles, or tagged-PDF status) — not the reference checklist further down, which requires human judgment.')
+
+        if breakdown:
+            st.caption('Breakdown by category — the percentage of that material (images, tables, etc.) that meets the relevant WCAG criterion:')
+            cat_cols = st.columns(len(breakdown))
+            for col, cat in zip(cat_cols, breakdown):
+                with col:
+                    st.metric(cat['category'], f"{cat['percent']}%")
+                    st.progress(cat['percent'] / 100)
+
+        st.caption('Scores reflect only the automatically-checkable items below (alt text, headings, table headers, link text, slide titles, or tagged-PDF status) — not the reference checklist further down, which requires human judgment.')
     else:
         st.caption('No automatically-scoreable accessibility checks apply to this file type.')
 
