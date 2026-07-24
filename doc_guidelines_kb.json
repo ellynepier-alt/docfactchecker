@@ -6,78 +6,467 @@
     "citation": "Giacino JT, Katz DI, Schiff ND, Whyte J, et al. Practice guideline update recommendations summary: Disorders of consciousness. Neurology. 2018;91(10):450-460."
   },
   "recommendations": [
-    {"id":"1","topic":"Specialized multidisciplinary rehabilitation","level":["B"],"text":"Clinicians should refer patients with DoC who have achieved medical stability to settings staffed by multidisciplinary rehabilitation teams with specialized training to optimize diagnostic evaluation, prognostication, and subsequent management, including effective medical monitoring and rehabilitative care (Level B)."},
-    {"id":"2a","topic":"Standardized valid neurobehavioral assessments","level":["B"],"text":"Clinicians should use standardized neurobehavioral assessment measures that have been shown to be valid and reliable to improve diagnostic accuracy (Level B)."},
-    {"id":"2b","topic":"Serial standardized assessments","level":["B"],"text":"To reduce diagnostic error, serial standardized neurobehavioral assessments should be performed with reassessment interval determined by individual clinical circumstances (Level B)."},
-    {"id":"2c","topic":"Increase arousal before assessment","level":["B"],"text":"Clinicians should attempt to increase arousal before evaluations anytime diminished arousal is observed or suspected (Level B)."},
-    {"id":"2d","topic":"Treat confounding conditions before final diagnosis","level":["B"],"text":"Clinicians should identify and treat conditions that may confound accurate diagnosis of DoC prior to establishing a final diagnosis (Level B)."},
-    {"id":"2e","topic":"Multimodal evaluations when ambiguity remains","level":["C"],"text":"When ambiguity remains despite serial assessments, clinicians may use multimodal evaluations incorporating specialized functional imaging or electrophysiologic studies (Level C)."},
-    {"id":"2f","topic":"Frequent reevaluation when neuroimaging suggests awareness","level":["C"],"text":"In situations where there is no behavioral evidence of consciousness on clinical examination but functional neuroimaging or electrophysiologic testing suggests the possibility of preserved conscious awareness, frequent neurobehavioral reevaluations may be conducted to identify emerging signs of conscious awareness (Level C), and decisions to reduce the intensity of rehabilitation treatment may be delayed for those individuals receiving active rehabilitation management (Level C)."},
-    {"id":"3","topic":"Avoid universally poor prognosis statements in first 28 days","level":["A"],"text":"When discussing prognosis with caregivers during the first 28 days post injury, clinicians must avoid statements suggesting a universally poor prognosis (Level A)."},
-    {"id":"4","topic":"Serial evaluations for prognosis","level":["B"],"text":"Clinicians caring for patients with prolonged DoC should perform serial standardized behavioral evaluations to identify trends in the trajectory of recovery that are important for establishing prognosis (Level B)."},
-    {"id":"5","topic":"Prognostic testing in traumatic VS/UWS","level":["B","C"],"text":"For traumatic VS/UWS, clinicians should perform the DRS at 2-3 months post injury (Level B); may assess P300 (Level C) or EEG reactivity (Level C) at 2-3 months post injury; should perform MRI at 6-8 weeks post injury to assess for corpus callosal lesions, dorsolateral upper brainstem injury, or corona radiata injury (Level B); should perform a SPECT scan 1-2 months post injury (Level B); and may assess BOLD fMRI activation in response to a familiar voice 1-60 months post injury (Level C) — all to assist prognostication regarding 12-month recovery of consciousness."},
-    {"id":"6","topic":"Prognostic testing in nontraumatic post-anoxic VS/UWS","level":["B","C"],"text":"For nontraumatic post-anoxic VS/UWS, clinicians should perform the CRS-R (Level B) and may assess SEPs (Level C) to assist prognostication regarding recovery of consciousness at 24 months. A CRS-R score of 6 or higher (more than 1 month after onset) and presence of SEPs from bilateral median nerve stimulation are each associated with increased likelihood of recovery."},
-    {"id":"7","topic":"Discontinue permanent VS terminology","level":["B"],"text":"Use of the term permanent VS should be discontinued. After 3 months in nontraumatic VS/UWS and 12 months in traumatic VS/UWS, use chronic VS/UWS accompanied by duration (Level B)."},
-    {"id":"8","topic":"Prognostic factors and individual variability","level":["B"],"text":"MCS diagnosed within 5 months and traumatic etiology are associated with more favorable outcomes; VS/UWS and nontraumatic etiology are associated with poorer outcomes, but individual outcomes vary and prognosis is not universally poor (Level B)."},
-    {"id":"9","topic":"Goals of care and long-term planning","level":["A"],"text":"Once prognosis indicates likely severe long-term disability, clinicians must counsel families to seek assistance establishing goals of care, completing medical decision-making forms, applying for benefits, and planning for estate, caregiver, and long-term care needs (Level A)."},
-    {"id":"10","topic":"Chronic phase prognostic counseling","level":["B"],"text":"When patients enter the chronic phase of VS/UWS (3 months after non-TBI and 12 months after TBI), prognostic counseling should be provided that emphasizes the likelihood of permanent severe disability and the need for long-term assistive care (Level B)."},
-    {"id":"11","topic":"Patient and family preferences","level":["A"],"text":"Clinicians must identify patient and family preferences early and throughout care to guide decision-making (Level A)."},
-    {"id":"12","topic":"Medical complications","level":["B"],"text":"Clinicians should be vigilant to common medical complications and use a systematic assessment approach for prevention, early identification, and treatment (Level B)."},
-    {"id":"13","topic":"Pain and suffering","level":["B"],"text":"Clinicians should assess individuals with DoC for pain or suffering and treat when reasonable cause exists, regardless of level of consciousness; clinicians should counsel families that uncertainty remains about degree of pain and suffering (Level B)."},
-    {"id":"14","topic":"Amantadine","level":["B"],"text":"For traumatic VS/UWS or MCS patients 4-16 weeks post injury, clinicians should prescribe amantadine 100-200 mg twice daily to hasten functional recovery and reduce disability after determining no contraindications or case-specific risks (Level B)."},
-    {"id":"15","topic":"Nonvalidated treatments","level":["B"],"text":"Clinicians should counsel families about limitations of evidence and risks/harms of interventions that lack evidentiary support; when discussing nonvalidated treatments, provide evidence-based information on projected benefits, risks, and uncertainty (Level B)."},
-    {"id":"16","topic":"Pediatric diagnostic accuracy","level":["B"],"text":"For children with prolonged DoC, clinicians should treat confounds, increase arousal before diagnostic assessments, use valid/reliable standardized behavioral assessments, and conduct serial assessments (Level B)."},
-    {"id":"17","topic":"Pediatric prognosis","level":["B"],"text":"Clinicians should counsel families that natural history and prognosis of children with prolonged DoC are not well defined and current evaluations are not established to improve prognostic accuracy (Level B)."},
-    {"id":"18","topic":"Pediatric therapies","level":["B"],"text":"Clinicians should counsel families that there are no established therapies for children with prolonged DoC (Level B)."}
+    {
+      "id": "1",
+      "topic": "Specialized multidisciplinary rehabilitation",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should refer patients with DoC who have achieved medical stability to settings staffed by multidisciplinary rehabilitation teams with specialized training to optimize diagnostic evaluation, prognostication, and subsequent management, including effective medical monitoring and rehabilitative care (Level B).",
+      "summary_page": 52,
+      "detail_page": 179
+    },
+    {
+      "id": "2a",
+      "topic": "Standardized valid neurobehavioral assessments",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should use standardized neurobehavioral assessment measures that have been shown to be valid and reliable to improve diagnostic accuracy (Level B).",
+      "summary_page": 53,
+      "detail_page": 180
+    },
+    {
+      "id": "2b",
+      "topic": "Serial standardized assessments",
+      "level": [
+        "B"
+      ],
+      "text": "To reduce diagnostic error, serial standardized neurobehavioral assessments should be performed with reassessment interval determined by individual clinical circumstances (Level B).",
+      "summary_page": 53,
+      "detail_page": 180
+    },
+    {
+      "id": "2c",
+      "topic": "Increase arousal before assessment",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should attempt to increase arousal before evaluations anytime diminished arousal is observed or suspected (Level B).",
+      "summary_page": 53,
+      "detail_page": 180
+    },
+    {
+      "id": "2d",
+      "topic": "Treat confounding conditions before final diagnosis",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should identify and treat conditions that may confound accurate diagnosis of DoC prior to establishing a final diagnosis (Level B).",
+      "summary_page": 53,
+      "detail_page": 180
+    },
+    {
+      "id": "2e",
+      "topic": "Multimodal evaluations when ambiguity remains",
+      "level": [
+        "C"
+      ],
+      "text": "When ambiguity remains despite serial assessments, clinicians may use multimodal evaluations incorporating specialized functional imaging or electrophysiologic studies (Level C).",
+      "summary_page": 53,
+      "detail_page": 180
+    },
+    {
+      "id": "2f",
+      "topic": "Frequent reevaluation when neuroimaging suggests awareness",
+      "level": [
+        "C"
+      ],
+      "text": "In situations where there is no behavioral evidence of consciousness on clinical examination but functional neuroimaging or electrophysiologic testing suggests the possibility of preserved conscious awareness, frequent neurobehavioral reevaluations may be conducted to identify emerging signs of conscious awareness (Level C), and decisions to reduce the intensity of rehabilitation treatment may be delayed for those individuals receiving active rehabilitation management (Level C).",
+      "summary_page": 53,
+      "detail_page": 180
+    },
+    {
+      "id": "3",
+      "topic": "Avoid universally poor prognosis statements in first 28 days",
+      "level": [
+        "A"
+      ],
+      "text": "When discussing prognosis with caregivers during the first 28 days post injury, clinicians must avoid statements suggesting a universally poor prognosis (Level A).",
+      "summary_page": 56,
+      "detail_page": 189
+    },
+    {
+      "id": "4",
+      "topic": "Serial evaluations for prognosis",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians caring for patients with prolonged DoC should perform serial standardized behavioral evaluations to identify trends in the trajectory of recovery that are important for establishing prognosis (Level B).",
+      "summary_page": 57,
+      "detail_page": 191
+    },
+    {
+      "id": "5",
+      "topic": "Prognostic testing in traumatic VS/UWS",
+      "level": [
+        "B",
+        "C"
+      ],
+      "text": "For traumatic VS/UWS, clinicians should perform the DRS at 2-3 months post injury (Level B); may assess P300 (Level C) or EEG reactivity (Level C) at 2-3 months post injury; should perform MRI at 6-8 weeks post injury to assess for corpus callosal lesions, dorsolateral upper brainstem injury, or corona radiata injury (Level B); should perform a SPECT scan 1-2 months post injury (Level B); and may assess BOLD fMRI activation in response to a familiar voice 1-60 months post injury (Level C) \u2014 all to assist prognostication regarding 12-month recovery of consciousness.",
+      "summary_page": 58,
+      "detail_page": 192
+    },
+    {
+      "id": "6",
+      "topic": "Prognostic testing in nontraumatic post-anoxic VS/UWS",
+      "level": [
+        "B",
+        "C"
+      ],
+      "text": "For nontraumatic post-anoxic VS/UWS, clinicians should perform the CRS-R (Level B) and may assess SEPs (Level C) to assist prognostication regarding recovery of consciousness at 24 months. A CRS-R score of 6 or higher (more than 1 month after onset) and presence of SEPs from bilateral median nerve stimulation are each associated with increased likelihood of recovery.",
+      "summary_page": 59,
+      "detail_page": 198
+    },
+    {
+      "id": "7",
+      "topic": "Discontinue permanent VS terminology",
+      "level": [
+        "B"
+      ],
+      "text": "Use of the term permanent VS should be discontinued. After 3 months in nontraumatic VS/UWS and 12 months in traumatic VS/UWS, use chronic VS/UWS accompanied by duration (Level B).",
+      "summary_page": 59,
+      "detail_page": 200
+    },
+    {
+      "id": "8",
+      "topic": "Prognostic factors and individual variability",
+      "level": [
+        "B"
+      ],
+      "text": "MCS diagnosed within 5 months and traumatic etiology are associated with more favorable outcomes; VS/UWS and nontraumatic etiology are associated with poorer outcomes, but individual outcomes vary and prognosis is not universally poor (Level B).",
+      "summary_page": 61,
+      "detail_page": 202
+    },
+    {
+      "id": "9",
+      "topic": "Goals of care and long-term planning",
+      "level": [
+        "A"
+      ],
+      "text": "Once prognosis indicates likely severe long-term disability, clinicians must counsel families to seek assistance establishing goals of care, completing medical decision-making forms, applying for benefits, and planning for estate, caregiver, and long-term care needs (Level A).",
+      "summary_page": 61,
+      "detail_page": 204
+    },
+    {
+      "id": "10",
+      "topic": "Chronic phase prognostic counseling",
+      "level": [
+        "B"
+      ],
+      "text": "When patients enter the chronic phase of VS/UWS (3 months after non-TBI and 12 months after TBI), prognostic counseling should be provided that emphasizes the likelihood of permanent severe disability and the need for long-term assistive care (Level B).",
+      "summary_page": 62,
+      "detail_page": 205
+    },
+    {
+      "id": "11",
+      "topic": "Patient and family preferences",
+      "level": [
+        "A"
+      ],
+      "text": "Clinicians must identify patient and family preferences early and throughout care to guide decision-making (Level A).",
+      "summary_page": 62,
+      "detail_page": 205
+    },
+    {
+      "id": "12",
+      "topic": "Medical complications",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should be vigilant to common medical complications and use a systematic assessment approach for prevention, early identification, and treatment (Level B).",
+      "summary_page": 62,
+      "detail_page": 206
+    },
+    {
+      "id": "13",
+      "topic": "Pain and suffering",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should assess individuals with DoC for pain or suffering and treat when reasonable cause exists, regardless of level of consciousness; clinicians should counsel families that uncertainty remains about degree of pain and suffering (Level B).",
+      "summary_page": 63,
+      "detail_page": 207
+    },
+    {
+      "id": "14",
+      "topic": "Amantadine",
+      "level": [
+        "B"
+      ],
+      "text": "For traumatic VS/UWS or MCS patients 4-16 weeks post injury, clinicians should prescribe amantadine 100-200 mg twice daily to hasten functional recovery and reduce disability after determining no contraindications or case-specific risks (Level B).",
+      "summary_page": 63,
+      "detail_page": 209
+    },
+    {
+      "id": "15",
+      "topic": "Nonvalidated treatments",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should counsel families about limitations of evidence and risks/harms of interventions that lack evidentiary support; when discussing nonvalidated treatments, provide evidence-based information on projected benefits, risks, and uncertainty (Level B).",
+      "summary_page": 64,
+      "detail_page": 210
+    },
+    {
+      "id": "16",
+      "topic": "Pediatric diagnostic accuracy",
+      "level": [
+        "B"
+      ],
+      "text": "For children with prolonged DoC, clinicians should treat confounds, increase arousal before diagnostic assessments, use valid/reliable standardized behavioral assessments, and conduct serial assessments (Level B).",
+      "summary_page": 64,
+      "detail_page": 213
+    },
+    {
+      "id": "17",
+      "topic": "Pediatric prognosis",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should counsel families that natural history and prognosis of children with prolonged DoC are not well defined and current evaluations are not established to improve prognostic accuracy (Level B).",
+      "summary_page": 65,
+      "detail_page": 214
+    },
+    {
+      "id": "18",
+      "topic": "Pediatric therapies",
+      "level": [
+        "B"
+      ],
+      "text": "Clinicians should counsel families that there are no established therapies for children with prolonged DoC (Level B).",
+      "summary_page": 65,
+      "detail_page": 215
+    }
   ],
   "terminology_flags": [
-    {"pattern":"permanent vegetative state","severity":"high","issue":"The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.","rec":"7"},
-    {"pattern":"permanent VS","severity":"high","issue":"The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.","rec":"7"},
-    {"pattern":"vegetable","severity":"high","issue":"Stigmatizing and clinically inappropriate. Use person-first language.","rec":null},
-    {"pattern":"persistent vegetative state","severity":"medium","issue":"Legacy terminology. Consider VS/UWS and avoid conflating persistent with permanent.","rec":"7"},
-    {"pattern":"brain dead","severity":"medium","issue":"Brain death is distinct from VS/UWS and MCS. Verify this is not being conflated.","rec":null}
+    {
+      "pattern": "permanent vegetative state",
+      "severity": "high",
+      "issue": "The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.",
+      "rec": "7"
+    },
+    {
+      "pattern": "permanent VS",
+      "severity": "high",
+      "issue": "The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.",
+      "rec": "7"
+    },
+    {
+      "pattern": "vegetable",
+      "severity": "high",
+      "issue": "Stigmatizing and clinically inappropriate. Use person-first language.",
+      "rec": null
+    },
+    {
+      "pattern": "persistent vegetative state",
+      "severity": "medium",
+      "issue": "Legacy terminology. Consider VS/UWS and avoid conflating persistent with permanent.",
+      "rec": "7"
+    },
+    {
+      "pattern": "brain dead",
+      "severity": "medium",
+      "issue": "Brain death is distinct from VS/UWS and MCS. Verify this is not being conflated.",
+      "rec": null
+    }
   ],
   "contradiction_flags": [
-    {"pattern":"universally poor prognosis","severity":"high","issue":"The guideline says clinicians must avoid statements suggesting universally poor prognosis, especially in the first 28 days.","rec":"3"},
-    {"pattern":"no chance of recovery","severity":"high","issue":"Conflicts with guideline language that prognosis is not universally poor and individual outcomes vary.","rec":"3"},
-    {"pattern":"amantadine cures","severity":"high","issue":"Amantadine may hasten functional recovery in a defined subgroup; avoid saying it cures DoC.","rec":"14"},
-    {"pattern":"permanent after 3 months","severity":"high","issue":"The guideline uses chronic, not permanent. Three months applies to nontraumatic VS/UWS; traumatic VS/UWS uses 12 months.","rec":"7"}
+    {
+      "pattern": "universally poor prognosis",
+      "severity": "high",
+      "issue": "The guideline says clinicians must avoid statements suggesting universally poor prognosis, especially in the first 28 days.",
+      "rec": "3"
+    },
+    {
+      "pattern": "no chance of recovery",
+      "severity": "high",
+      "issue": "Conflicts with guideline language that prognosis is not universally poor and individual outcomes vary.",
+      "rec": "3"
+    },
+    {
+      "pattern": "amantadine cures",
+      "severity": "high",
+      "issue": "Amantadine may hasten functional recovery in a defined subgroup; avoid saying it cures DoC.",
+      "rec": "14"
+    },
+    {
+      "pattern": "permanent after 3 months",
+      "severity": "high",
+      "issue": "The guideline uses chronic, not permanent. Three months applies to nontraumatic VS/UWS; traumatic VS/UWS uses 12 months.",
+      "rec": "7"
+    }
   ],
   "key_facts": [
-    {"id":"nontraumatic-3m","fact":"Chronic VS/UWS is applied after 3 months for nontraumatic VS/UWS.","rec":["7","10"]},
-    {"id":"traumatic-12m","fact":"Chronic VS/UWS is applied after 12 months for traumatic VS/UWS.","rec":["7","10"]},
-    {"id":"amantadine-dose","fact":"Amantadine dose is 100-200 mg twice daily.","rec":["14"]},
-    {"id":"amantadine-window","fact":"Amantadine recommendation applies to traumatic VS/UWS or MCS patients 4-16 weeks post injury.","rec":["14"]},
-    {"id":"mcs-5m","fact":"MCS diagnosed within 5 months of injury is associated with more favorable outcomes.","rec":["8"]},
-    {"id":"drs-timing","fact":"The DRS should be performed at 2-3 months post injury to assist prognostication in traumatic VS/UWS.","rec":["5"]},
-    {"id":"mri-timing","fact":"MRI should be performed 6-8 weeks post injury to assess for corpus callosal lesions, dorsolateral upper brainstem injury, or corona radiata injury in traumatic VS/UWS.","rec":["5"]},
-    {"id":"spect-timing","fact":"SPECT scan should be performed 1-2 months post injury in traumatic VS/UWS.","rec":["5"]},
-    {"id":"crs-r-cutoff","fact":"A CRS-R score of 6 or higher, obtained more than 1 month after onset, is associated with increased likelihood of recovery of consciousness by 24 months in nontraumatic post-anoxic VS/UWS.","rec":["6"]},
-    {"id":"sep-nontraumatic","fact":"Presence of SEPs from bilateral median nerve stimulation is associated with increased likelihood of recovery of responsiveness by 24 months in nontraumatic post-anoxic VS/UWS.","rec":["6"]}
+    {
+      "id": "nontraumatic-3m",
+      "fact": "Chronic VS/UWS is applied after 3 months for nontraumatic VS/UWS.",
+      "rec": [
+        "7",
+        "10"
+      ]
+    },
+    {
+      "id": "traumatic-12m",
+      "fact": "Chronic VS/UWS is applied after 12 months for traumatic VS/UWS.",
+      "rec": [
+        "7",
+        "10"
+      ]
+    },
+    {
+      "id": "amantadine-dose",
+      "fact": "Amantadine dose is 100-200 mg twice daily.",
+      "rec": [
+        "14"
+      ]
+    },
+    {
+      "id": "amantadine-window",
+      "fact": "Amantadine recommendation applies to traumatic VS/UWS or MCS patients 4-16 weeks post injury.",
+      "rec": [
+        "14"
+      ]
+    },
+    {
+      "id": "mcs-5m",
+      "fact": "MCS diagnosed within 5 months of injury is associated with more favorable outcomes.",
+      "rec": [
+        "8"
+      ]
+    },
+    {
+      "id": "drs-timing",
+      "fact": "The DRS should be performed at 2-3 months post injury to assist prognostication in traumatic VS/UWS.",
+      "rec": [
+        "5"
+      ]
+    },
+    {
+      "id": "mri-timing",
+      "fact": "MRI should be performed 6-8 weeks post injury to assess for corpus callosal lesions, dorsolateral upper brainstem injury, or corona radiata injury in traumatic VS/UWS.",
+      "rec": [
+        "5"
+      ]
+    },
+    {
+      "id": "spect-timing",
+      "fact": "SPECT scan should be performed 1-2 months post injury in traumatic VS/UWS.",
+      "rec": [
+        "5"
+      ]
+    },
+    {
+      "id": "crs-r-cutoff",
+      "fact": "A CRS-R score of 6 or higher, obtained more than 1 month after onset, is associated with increased likelihood of recovery of consciousness by 24 months in nontraumatic post-anoxic VS/UWS.",
+      "rec": [
+        "6"
+      ]
+    },
+    {
+      "id": "sep-nontraumatic",
+      "fact": "Presence of SEPs from bilateral median nerve stimulation is associated with increased likelihood of recovery of responsiveness by 24 months in nontraumatic post-anoxic VS/UWS.",
+      "rec": [
+        "6"
+      ]
+    }
   ],
   "terminology_definitions": [
-    {"term":"Coma","definition":"A state of complete unconsciousness with no evidence of wakefulness (eyes remain continuously closed) or self/environmental awareness."},
-    {"term":"Vegetative state (VS) / unresponsive wakefulness syndrome (UWS)","definition":"Spontaneous eye-opening signaling wakefulness, but no evidence of purposeful behavior suggesting awareness of self or environment."},
-    {"term":"Persistent vegetative state (PVS)","definition":"Diagnostic term for VS/UWS lasting more than 1 month following TBI or non-TBI. This does NOT by itself imply irreversibility."},
-    {"term":"Permanent vegetative state","definition":"Prognostic term applied 3 months after nontraumatic VS and 12 months after traumatic VS, indicating a high probability of irreversibility. Distinct from 'persistent' VS."},
-    {"term":"Minimally conscious state (MCS)","definition":"Severely altered consciousness with definite, but often subtle and inconsistent, behavioral evidence of self or environmental awareness."},
-    {"term":"MCS+","definition":"Subcategory of MCS defined by behavioral evidence of preserved receptive language function (e.g., command following, intelligible speech)."},
-    {"term":"MCS-","definition":"Subcategory of MCS defined by nonlinguistic signs of conscious awareness only (automatic movements, object manipulation, localizing limb/eye movements, visual fixation or pursuit, affective behaviors relevant to stimuli) — without command following or intelligible speech."},
-    {"term":"Emergence from MCS (EMCS)","definition":"Recovery of reliable communication (verbal or gestural yes/no responses) OR functional object use, defined as demonstrated instrumental use of at least 2 different familiar objects."},
-    {"term":"Recovery of consciousness","definition":"Reemergence of reproducible behavioral evidence of at least 1 feature of MCS, signaling the transition from coma or VS/UWS to MCS. Distinct from emergence from MCS (EMCS), which is a later transition."},
-    {"term":"Posttraumatic confusional state (PTCS)","definition":"Altered consciousness after TBI with impaired attention, impaired encoding/retrieval of recent experience, impaired orientation, and symptom fluctuation — all features present together."},
-    {"term":"Locked-in syndrome","definition":"A distinct neurologic syndrome (tetraplegia, anarthria, near-normal to normal cognition) usually from a ventral pons lesion. Loss of speech/motor function with spontaneous eye-opening can lead to misdiagnosis as VS/UWS; it is not a disorder of consciousness."}
+    {
+      "term": "Coma",
+      "definition": "A state of complete unconsciousness with no evidence of wakefulness (eyes remain continuously closed) or self/environmental awareness."
+    },
+    {
+      "term": "Vegetative state (VS) / unresponsive wakefulness syndrome (UWS)",
+      "definition": "Spontaneous eye-opening signaling wakefulness, but no evidence of purposeful behavior suggesting awareness of self or environment."
+    },
+    {
+      "term": "Persistent vegetative state (PVS)",
+      "definition": "Diagnostic term for VS/UWS lasting more than 1 month following TBI or non-TBI. This does NOT by itself imply irreversibility."
+    },
+    {
+      "term": "Permanent vegetative state",
+      "definition": "Prognostic term applied 3 months after nontraumatic VS and 12 months after traumatic VS, indicating a high probability of irreversibility. Distinct from 'persistent' VS."
+    },
+    {
+      "term": "Minimally conscious state (MCS)",
+      "definition": "Severely altered consciousness with definite, but often subtle and inconsistent, behavioral evidence of self or environmental awareness."
+    },
+    {
+      "term": "MCS+",
+      "definition": "Subcategory of MCS defined by behavioral evidence of preserved receptive language function (e.g., command following, intelligible speech)."
+    },
+    {
+      "term": "MCS-",
+      "definition": "Subcategory of MCS defined by nonlinguistic signs of conscious awareness only (automatic movements, object manipulation, localizing limb/eye movements, visual fixation or pursuit, affective behaviors relevant to stimuli) \u2014 without command following or intelligible speech."
+    },
+    {
+      "term": "Emergence from MCS (EMCS)",
+      "definition": "Recovery of reliable communication (verbal or gestural yes/no responses) OR functional object use, defined as demonstrated instrumental use of at least 2 different familiar objects."
+    },
+    {
+      "term": "Recovery of consciousness",
+      "definition": "Reemergence of reproducible behavioral evidence of at least 1 feature of MCS, signaling the transition from coma or VS/UWS to MCS. Distinct from emergence from MCS (EMCS), which is a later transition."
+    },
+    {
+      "term": "Posttraumatic confusional state (PTCS)",
+      "definition": "Altered consciousness after TBI with impaired attention, impaired encoding/retrieval of recent experience, impaired orientation, and symptom fluctuation \u2014 all features present together."
+    },
+    {
+      "term": "Locked-in syndrome",
+      "definition": "A distinct neurologic syndrome (tetraplegia, anarthria, near-normal to normal cognition) usually from a ventral pons lesion. Loss of speech/motor function with spontaneous eye-opening can lead to misdiagnosis as VS/UWS; it is not a disorder of consciousness."
+    }
   ],
   "accessibility_checklist": [
-    {"principle":"Perceivable","item":"Provide equivalent alternative text for images, charts, and diagrams so screen-reader users get the same information.","wcag":"1.1.1"},
-    {"principle":"Perceivable","item":"Caption or transcribe any audio/video content.","wcag":"1.2.x"},
-    {"principle":"Perceivable","item":"Do not rely on color alone to convey meaning (e.g., \"red items are overdue\") — pair color with text or symbols.","wcag":"1.4.1"},
-    {"principle":"Understandable","item":"Create logical document structure using real headings, lists, and other structural elements rather than visual formatting alone.","wcag":"1.3.1 / 2.4.6"},
-    {"principle":"Understandable","item":"Provide row/column headers for data tables so screen readers can associate headers with data cells.","wcag":"1.3.1"},
-    {"principle":"Understandable","item":"Write link text that makes sense out of context — avoid \"click here\" or \"more\".","wcag":"2.4.4"},
-    {"principle":"Understandable","item":"Ensure every form field has a programmatically associated label and that errors are identified in text.","wcag":"3.3.1 / 3.3.2"},
-    {"principle":"Understandable","item":"Write clearly and use plain language where possible; avoid unnecessary jargon.","wcag":"3.1.5"},
-    {"principle":"Operable","item":"Allow users to skip repetitive navigation elements.","wcag":"2.4.1"},
-    {"principle":"Robust","item":"Ensure PDFs, Word docs, PowerPoint files, and other non-HTML content are tagged/structured for accessibility, or provide an accessible alternative.","wcag":"4.1.2"}
+    {
+      "principle": "Perceivable",
+      "item": "Provide equivalent alternative text for images, charts, and diagrams so screen-reader users get the same information.",
+      "wcag": "1.1.1"
+    },
+    {
+      "principle": "Perceivable",
+      "item": "Caption or transcribe any audio/video content.",
+      "wcag": "1.2.x"
+    },
+    {
+      "principle": "Perceivable",
+      "item": "Do not rely on color alone to convey meaning (e.g., \"red items are overdue\") \u2014 pair color with text or symbols.",
+      "wcag": "1.4.1"
+    },
+    {
+      "principle": "Understandable",
+      "item": "Create logical document structure using real headings, lists, and other structural elements rather than visual formatting alone.",
+      "wcag": "1.3.1 / 2.4.6"
+    },
+    {
+      "principle": "Understandable",
+      "item": "Provide row/column headers for data tables so screen readers can associate headers with data cells.",
+      "wcag": "1.3.1"
+    },
+    {
+      "principle": "Understandable",
+      "item": "Write link text that makes sense out of context \u2014 avoid \"click here\" or \"more\".",
+      "wcag": "2.4.4"
+    },
+    {
+      "principle": "Understandable",
+      "item": "Ensure every form field has a programmatically associated label and that errors are identified in text.",
+      "wcag": "3.3.1 / 3.3.2"
+    },
+    {
+      "principle": "Understandable",
+      "item": "Write clearly and use plain language where possible; avoid unnecessary jargon.",
+      "wcag": "3.1.5"
+    },
+    {
+      "principle": "Operable",
+      "item": "Allow users to skip repetitive navigation elements.",
+      "wcag": "2.4.1"
+    },
+    {
+      "principle": "Robust",
+      "item": "Ensure PDFs, Word docs, PowerPoint files, and other non-HTML content are tagged/structured for accessibility, or provide an accessible alternative.",
+      "wcag": "4.1.2"
+    }
   ]
 }
