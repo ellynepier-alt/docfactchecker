@@ -477,6 +477,43 @@ def check_accessibility(path, text):
     return findings
 
 
+# Only these "primary" checks count toward the compliance score. Supplementary
+# per-item detail (e.g. individual "Alt text feedback" entries, "Bold text used
+# in place of headings") is excluded so one bad image doesn't get double-penalized.
+SCORED_ACCESSIBILITY_CHECKS = {
+    'Image alternative text', 'Image alternative text (OCR-verified)',
+    'Heading styles used for structure', 'Table header rows',
+    'Meaningful link text', 'Slide titles', 'Tagged PDF structure',
+}
+
+
+def compute_accessibility_score(findings):
+    pass_n = warn_n = fail_n = 0
+    for f in findings:
+        if f['check'] not in SCORED_ACCESSIBILITY_CHECKS:
+            continue
+        if f['status'] == 'pass':
+            pass_n += 1
+        elif f['status'] == 'warn':
+            warn_n += 1
+        elif f['status'] == 'fail':
+            fail_n += 1
+        # 'na' and 'manual' are excluded — not automatically determinable either way.
+
+    total = pass_n + warn_n + fail_n
+    if total == 0:
+        return {'score': None, 'zone': None}
+
+    score = round(100 * (pass_n + 0.5 * warn_n) / total)
+    if score >= 90:
+        zone = 'green'
+    elif score >= 70:
+        zone = 'yellow'
+    else:
+        zone = 'red'
+    return {'score': score, 'zone': zone}
+
+
 def run_checks(filepath, kb):
     text = extract_text(filepath)
     flags = []
@@ -661,13 +698,15 @@ def run_checks(filepath, kb):
         deduped_flags.append(f)
     flags = deduped_flags
     flags.sort(key=lambda x: order.get(x['severity'], 9))
+    accessibility_findings = check_accessibility(filepath, text)
     return {
         'filename': os.path.basename(filepath),
         'text_length': len(text),
         'flags': flags,
         'coverage': sorted(set(coverage)),
         'clarity': analyze_clarity(text),
-        'accessibility': check_accessibility(filepath, text),
+        'accessibility': accessibility_findings,
+        'accessibility_score': compute_accessibility_score(accessibility_findings),
     }
 
 
