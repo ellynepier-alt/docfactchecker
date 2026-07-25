@@ -344,9 +344,15 @@ def check_accessibility_docx(path):
             'category': 'Images', 'percent': pct,
             'status': 'fail' if (missing_alt or poor_alt) else 'pass',
             'detail': f'{compliant_images} of {total_images} image(s) ({pct}%) have adequate alt text; {missing_alt} missing, {poor_alt} generic or mismatched with the image\'s actual visible content (checked via OCR).',
+            'fix': ('Right-click the image → "Edit Alt Text..." (or Format Picture → Alt Text pane) → write a concise description of what the image '
+                    'shows or the information it conveys. If the image is purely decorative and adds no information, mark it as decorative instead '
+                    'of leaving the field blank.'),
         })
         for fb in alt_feedback[:8]:
-            findings.append({'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb})
+            findings.append({
+                'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb,
+                'fix': 'Right-click the image → "Edit Alt Text..." → replace the current text with an accurate description of the image\'s content or purpose.',
+            })
     else:
         findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'category': 'Images', 'percent': None, 'status': 'na', 'detail': 'No images found in this document.'})
 
@@ -367,11 +373,14 @@ def check_accessibility_docx(path):
         'status': 'pass' if heading_used else 'fail',
         'detail': ('Document uses Word Heading styles, which screen readers rely on for section navigation.' if heading_used
                    else 'No paragraphs use Word Heading styles, so screen-reader users cannot navigate by section.'),
+        'fix': ('Select each section title → go to the Home tab → choose "Heading 1", "Heading 2", etc. from the Styles gallery, instead of manually '
+                'bolding or enlarging the font. This lets screen-reader users jump between sections and lets Word auto-generate a table of contents.'),
     })
     if fake_headings:
         findings.append({
             'check': 'Bold text used in place of headings', 'wcag': '1.3.1 Info and Relationships (Level A)',
             'status': 'warn', 'detail': f'{fake_headings} short bold line(s) look like section titles but are not tagged with a Heading style, so they are invisible to screen-reader navigation.',
+            'fix': 'Select each bolded title line → apply a Heading style from the Home tab\'s Styles gallery (e.g., Heading 1 or Heading 2) instead of just bold text.',
         })
 
     tables_total = len(doc.tables)
@@ -395,15 +404,19 @@ def check_accessibility_docx(path):
         tables_compliant = tables_total - tables_missing_header
         pct = round(100 * tables_compliant / tables_total)
         detail = f'{tables_compliant} of {tables_total} table(s) ({pct}%) have a designated header row; {tables_missing_header} do not, so screen readers cannot announce column context for those data cells.'
+        fix = 'Click into the header row → Table Properties (Layout tab → Properties, or right-click → Table Properties) → Row tab → check "Repeat as header row at the top of each page."'
         if tables_visual_only:
             detail += (f' Note: {tables_visual_only} of the non-compliant table(s) use the "Header Row" table-style option, which only changes visual '
-                       f'formatting (bold/shading) — it does NOT mark the row as an accessible header. To fix: select the header row → Table Properties → '
-                       f'Row tab → check "Repeat as header row at the top of each page."')
+                       f'formatting (bold/shading) — it does NOT mark the row as an accessible header.')
+            fix = ('The bold first row you see comes from the "Header Row" table-STYLE option (Table Design tab), which only affects appearance. '
+                   'To actually tag it as a header: click into that row → Table Properties → Row tab → check "Repeat as header row at the top of each page." '
+                   'Do this for each table.')
         findings.append({
             'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)',
             'category': 'Tables', 'percent': pct,
             'status': 'fail' if tables_missing_header else 'pass',
             'detail': detail,
+            'fix': fix,
         })
     else:
         findings.append({'check': 'Table header rows', 'wcag': '1.3.1 Info and Relationships (Level A)', 'category': 'Tables', 'percent': None, 'status': 'na', 'detail': 'No tables found in this document.'})
@@ -418,6 +431,7 @@ def check_accessibility_docx(path):
             'status': 'fail' if bad_links else 'pass',
             'detail': (f'{good_links} of {total_links} link(s) ({pct}%) use descriptive text; {len(bad_links)} use generic text like "{bad_links[0]}" that gives no context out of place — screen-reader users often navigate by a list of links alone.' if bad_links
                        else f'All {total_links} link(s) ({pct}%) use descriptive text.'),
+            'fix': 'Right-click the link → "Edit Hyperlink..." → change the displayed text to describe the destination (e.g., "CDC brain injury guidelines" instead of "click here").',
         })
     else:
         findings.append({'check': 'Meaningful link text', 'wcag': '2.4.4 Link Purpose in Context (Level A)', 'category': 'Links', 'percent': None, 'status': 'na', 'detail': 'No hyperlinks found in this document.'})
@@ -448,9 +462,13 @@ def check_accessibility_pptx(path):
             'category': 'Images', 'percent': pct,
             'status': 'fail' if (missing_alt or poor_alt) else 'pass',
             'detail': f'{compliant_images} of {total_images} image(s) ({pct}%) have adequate alt text; {missing_alt} missing, {poor_alt} generic or mismatched with the image\'s actual visible content (checked via OCR).',
+            'fix': 'Right-click the image → "Edit Alt Text..." → write a concise description of what the image shows or the information it conveys. Mark purely decorative images as decorative instead.',
         })
         for fb in alt_feedback[:8]:
-            findings.append({'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb})
+            findings.append({
+                'check': 'Alt text feedback', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'warn', 'detail': fb,
+                'fix': 'Right-click the image → "Edit Alt Text..." → replace the current text with an accurate description of the image\'s content or purpose.',
+            })
     else:
         findings.append({'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'category': 'Images', 'percent': None, 'status': 'na', 'detail': 'No images found in this presentation.'})
 
@@ -461,6 +479,9 @@ def check_accessibility_pptx(path):
         'category': 'Slide titles', 'percent': slide_pct,
         'status': 'fail' if slides_without_title else 'pass',
         'detail': f'{slides_with_title} of {len(slides)} slide(s) ({slide_pct}%) have a title placeholder; {slides_without_title} do not, so screen readers cannot announce the topic of those slides.',
+        'fix': ('Use the slide layout\'s built-in Title placeholder ("Click to add title") rather than a plain text box. If a slide is missing a title '
+                'placeholder, go to Home → Layout and choose a layout that includes one, then fill it in — you can format/hide it visually if needed, '
+                'but keep it present for screen readers.'),
     })
 
     return findings
@@ -472,6 +493,9 @@ def check_accessibility_pdf(path):
             'check': 'Tagged PDF structure', 'wcag': '1.3.1 Info and Relationships (A) / 4.1.2 Name, Role, Value (A)',
             'status': 'manual',
             'detail': "Automatic tag detection isn't available in this tool. Verify this PDF is tagged (e.g., with Acrobat's Accessibility Checker) so screen readers can interpret headings, tables, and reading order.",
+            'fix': ('In Adobe Acrobat Pro: Tools → Accessibility → "Autotag Document" to generate initial tags, then run the Accessibility Checker '
+                    '(Tools → Accessibility → Full Check) and manually fix any headings, tables, or reading-order issues it flags. If the PDF was '
+                    'exported from Word/PowerPoint, it\'s usually far easier to fix the accessibility issues in the original file and re-export/re-tag from there.'),
         },
     ]
     image_texts = get_pdf_images(path)
@@ -481,12 +505,14 @@ def check_accessibility_pdf(path):
             'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
             'status': 'manual',
             'detail': f'{len(image_texts)} image(s) contain machine-readable text (e.g., "{preview}..."). This text has been included in the fact-check, but PDF alt-text tagging still needs manual verification (e.g., with Acrobat\'s Accessibility Checker).',
+            'fix': 'In Acrobat Pro: Tools → Accessibility → Reading Order → select each image → "Add Alternate Text," or use the Accessibility Checker\'s "Add Alternate Text" flow.',
         })
     else:
         findings.append({
             'check': 'Image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)',
             'status': 'manual',
             'detail': "No machine-readable text was detected in this PDF's images. Alt-text tagging still can't be reliably verified automatically — check with Acrobat's Accessibility Checker.",
+            'fix': 'In Acrobat Pro: Tools → Accessibility → Reading Order → select each image → "Add Alternate Text," or use the Accessibility Checker\'s "Add Alternate Text" flow.',
         })
     return findings
 
