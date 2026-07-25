@@ -19,6 +19,35 @@ os.makedirs(HISTORY_DIR, exist_ok=True)
 st.set_page_config(page_title='DoC Guideline Fact-Checker', page_icon='📋', layout='wide')
 
 
+import html as html_module
+
+
+def render_wrapped_table(rows, columns=None):
+    """Render a list-of-dicts as a static HTML table with wrapped text (no truncation/click-to-expand)."""
+    if not rows:
+        st.write('None.')
+        return
+    if columns is None:
+        columns = list(rows[0].keys())
+
+    def esc(v):
+        return html_module.escape(str(v)).replace('\n', '<br>')
+
+    parts = ['<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">']
+    parts.append('<thead><tr>')
+    for c in columns:
+        parts.append(f'<th style="text-align:left; padding:6px 10px; border-bottom:2px solid var(--secondary-background-color, #ddd);">{esc(c)}</th>')
+    parts.append('</tr></thead><tbody>')
+    for row in rows:
+        parts.append('<tr>')
+        for c in columns:
+            val = row.get(c, '')
+            parts.append(f'<td style="padding:6px 10px; border-bottom:1px solid rgba(128,128,128,0.25); white-space:normal; word-wrap:break-word; vertical-align:top;">{esc(val)}</td>')
+        parts.append('</tr>')
+    parts.append('</tbody></table>')
+    st.markdown(''.join(parts), unsafe_allow_html=True)
+
+
 @st.cache_data
 def get_kb():
     return load_kb(KB_PATH)
@@ -106,12 +135,16 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
 
     st.caption(f"Guideline: {kb['meta']['title']} ({kb['meta']['year']}) — {kb['meta']['citation']}")
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric('High', counts['high'])
-    col2.metric('Medium', counts['medium'])
-    col3.metric('Low', counts['low'])
-
     rec_by_id = {rec['id']: rec for rec in kb['recommendations']}
+
+    # =======================================================================
+    # SECTION 1: Guideline fact-check
+    # =======================================================================
+    st.header('🔍 Guideline fact-check')
+    st.caption('Checks the content of your document against the DoC clinical guideline\'s recommendations and key facts.')
+
+    total_errors = len(flags)
+    st.metric('Errors flagged', total_errors)
 
     st.markdown('#### Flags')
     if not flags:
@@ -139,6 +172,7 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
                     st.caption(f"Context: {flag['context']}")
 
     st.markdown('#### Recommendation coverage map')
+    st.caption('Which guideline recommendations your document actually touches on.')
     coverage_rows = [
         {
             'Rec': rec['id'],
@@ -148,9 +182,15 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
         }
         for rec in kb['recommendations']
     ]
-    st.dataframe(coverage_rows, use_container_width=True, hide_index=True)
+    render_wrapped_table(coverage_rows)
 
-    st.markdown('#### Section 508 / accessibility check')
+    st.divider()
+
+    # =======================================================================
+    # SECTION 2: Section 508 / accessibility check
+    # =======================================================================
+    st.header('♿ Section 508 / accessibility check')
+    st.caption('Checks the document\'s structure (images, headings, tables, links) against Section 508 / WCAG requirements — separate from the fact-check above.')
 
     score = accessibility_score.get('score') if accessibility_score else None
     breakdown = accessibility_score.get('breakdown', []) if accessibility_score else []
@@ -168,7 +208,7 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
                     st.metric(cat['category'], f"{cat['percent']}%")
                     st.progress(cat['percent'] / 100)
 
-        st.caption('Scores reflect only the automatically-checkable items below (alt text, headings, table headers, link text, slide titles, or tagged-PDF status) — not the reference checklist further down, which requires human judgment.')
+        st.caption('Scores reflect only the automatically-checkable items below — not the reference checklist further down, which requires human judgment.')
     else:
         st.caption('No automatically-scoreable accessibility checks apply to this file type.')
 
@@ -182,27 +222,36 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
         }
         for f in accessibility
     ]
-    st.dataframe(a11y_rows, use_container_width=True, hide_index=True)
+    render_wrapped_table(a11y_rows)
     if any(f['status'] == 'manual' for f in accessibility):
         st.caption('🔍 = requires manual verification with a dedicated accessibility checker (e.g., Acrobat).')
 
+    fixable = [f for f in accessibility if f.get('fix') and f['status'] in ('fail', 'warn')]
+    if fixable:
+        st.markdown('#### How can I fix this?')
+        for f in fixable:
+            with st.expander(f"🔧 Fix: {f['check']}" + (f" — {f['detail'][:60]}..." if len(f['detail']) > 60 else '')):
+                st.write(f['fix'])
+
     with st.expander('General accessibility checklist (WCAG POUR principles)'):
-        st.markdown(
-            "The table above only covers what this tool can verify automatically for this file type "
-            "(e.g., alt text, headings, table headers). Many real accessibility requirements can't be "
-            "checked by software at all — they need a human to look and judge. The checklist below is "
-            "that missing half: a plain-language reference list of the WCAG requirements automated tools "
-            "typically can't verify, organized under the four WCAG principles (**P**erceivable, **O**perable, "
-            "**U**nderstandable, **R**obust — \"POUR\"). Use it as a guide when writing feedback to a document's "
-            "author, or as a manual checklist to walk through yourself."
+        st.caption(
+            "Covers what software can't check automatically — needs a human judgment call. "
+            "Organized by WCAG's four principles (Perceivable, Operable, Understandable, Robust)."
         )
         checklist_rows = [
             {'Principle': c['principle'], 'Guidance': c['item'], 'WCAG': c['wcag']}
             for c in kb.get('accessibility_checklist', [])
         ]
-        st.dataframe(checklist_rows, use_container_width=True, hide_index=True)
+        render_wrapped_table(checklist_rows)
 
-    st.markdown('#### Clarity & understandability suggestions')
+    st.divider()
+
+    # =======================================================================
+    # SECTION 3: Clarity & readability
+    # =======================================================================
+    st.header('📖 Clarity & understandability')
+    st.caption('How readable your document is — separate from both the fact-check and the 508 check above.')
+
     c1, c2, c3 = st.columns(3)
     c1.metric('Reading grade level', clarity['flesch_kincaid_grade'] if clarity['flesch_kincaid_grade'] is not None else 'N/A')
     c2.metric('Reading ease', clarity['flesch_reading_ease'] if clarity['flesch_reading_ease'] is not None else 'N/A')
@@ -225,6 +274,11 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
                 st.write(f"**{a['acronym']}** — {a['expansion']}")
 
     with st.expander('Appendix: guideline recommendation wording'):
+        st.caption(
+            "What this is: the complete, word-for-word text of every recommendation in the guideline listed above, "
+            "pulled directly from the source PDF. It's here so you can check the exact official wording behind any "
+            "flag or the coverage map, without needing to dig up and search the original guideline document yourself."
+        )
         for rec in kb['recommendations']:
             st.markdown(f"**Recommendation {rec['id']} (Level {'/'.join(rec['level'])})**")
             st.write(rec['text'])
