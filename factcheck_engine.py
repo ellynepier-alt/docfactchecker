@@ -3,7 +3,7 @@ from docx import Document
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
 
-SUPPORTED_EXTS = {'.txt', '.md', '.docx', '.pdf', '.pptx'}
+SUPPORTED_EXTS = {'.txt', '.md', '.docx', '.pdf', '.pptx', '.png', '.jpg', '.jpeg'}
 
 # Distinctive terms that indicate a document is actually about the DoC guideline subject
 # matter. Used to gate the coverage map so unrelated documents (e.g., about something
@@ -14,7 +14,10 @@ STRONG_ANCHOR_TERMS = [
     'disorders of consciousness', 'vegetative state', 'unresponsive wakefulness',
     'minimally conscious', ' mcs+', ' mcs-', 'crs-r', 'amantadine', 'locked-in syndrome',
     'emcs', 'ptcs', 'confusional state', 'coma recovery scale', 'disability rating scale',
-    'multidisciplinary rehabilitation', 'neurorehabilitation', 'prognostication',
+    'multidisciplinary rehabilitation', 'multidisciplinary team', 'neurorehabilitation', 'prognostication',
+    'arousal facilitation', 'sternocleidomastoid', 'heterotopic ossification', 'deep pressure stimulation',
+    'command following', 'sensory stimulation protocol', 'cognitive rehabilitation',
+    'splinting and orthotic', 'neuromuscular retraining',
 ]
 
 # Terms that are suggestive but common enough elsewhere that we require at least 2
@@ -22,6 +25,8 @@ STRONG_ANCHOR_TERMS = [
 WEAK_ANCHOR_TERMS = [
     'traumatic brain injury', ' tbi ', ' coma', ' mcs ', 'brain injury', 'consciousness',
     'intensivist', 'physiatrist', 'neurologist', 'rehabilitation team', 'behavioral evaluation',
+    'arousal', 'sensory stimulation', 'contracture', 'psychosocial support', 'advance care planning',
+    'discharge planning', 'rehabilitation intervention', 'sustained eye', 'behavioral responsiveness',
 ]
 
 DOMAIN_ANCHOR_TERMS = STRONG_ANCHOR_TERMS + WEAK_ANCHOR_TERMS
@@ -217,6 +222,9 @@ def extract_text(path):
                     continue
         chunks.extend(img['ocr_text'] for img in get_pptx_images(prs) if img['ocr_text'])
         return '\n'.join(chunks)
+    if ext in ('.png', '.jpg', '.jpeg'):
+        with open(path, 'rb') as f:
+            return ocr_image_bytes(f.read())
     raise ValueError('Unsupported file type')
 
 
@@ -415,8 +423,9 @@ _GRAMMAR_ABBREVIATIONS = {
 
 def check_grammar(text):
     issues = []
-    for m in re.finditer(r'\b(\w+)\s+\1\b', text, re.IGNORECASE):
-        issues.append({'issue': f'Repeated word: "{m.group(1)}"', 'context': text[max(0, m.start() - 40):m.end() + 40].strip()})
+    for line in text.split('\n'):
+        for m in re.finditer(r'\b(\w+)\s+\1\b', line, re.IGNORECASE):
+            issues.append({'issue': f'Repeated word: "{m.group(1)}"', 'context': line[max(0, m.start() - 40):m.end() + 40].strip()})
     if '  ' in text:
         first = text.find('  ')
         issues.append({'issue': 'Multiple consecutive spaces found.', 'context': text[max(0, first - 30):first + 30].strip()})
@@ -427,6 +436,9 @@ def check_grammar(text):
             continue
         if re.fullmatch(r'\(?[0-9]{1,3}\)?|\(?[a-z]\)?|\(?[ivxlcdm]{1,4}\)?', preceding_token, re.IGNORECASE):
             continue  # likely a list marker like "1." "a." "iv." — not a real sentence boundary
+        following_context = text[m.end() - 1:m.end() + 15]
+        if re.match(r'\s*(?:https?://|www\.|doi\.org|[a-z0-9.]+\.(?:com|org|edu|gov)\b)', following_context, re.IGNORECASE):
+            continue  # URL/DOI right after the period, common in reference lists
         issues.append({'issue': 'Sentence may need to start with a capital letter.', 'context': text[max(0, m.start() - 20):m.start() + 25].strip()})
     if text.count('(') != text.count(')'):
         issues.append({'issue': 'Unmatched parentheses found in the document.', 'context': ''})
@@ -502,15 +514,26 @@ def check_conciseness(text):
     return findings
 
 
+def strip_references_section(text):
+    """Reference lists/bibliographies have irregular formatting (URLs, journal abbreviations,
+    page ranges) that trips grammar/spelling/citation checks meant for prose. Cut everything
+    from a References/Bibliography/Works Cited heading onward."""
+    m = re.search(r'^[ \t]*(references|bibliography|works cited|reference list|citations)[ \t]*:?[ \t]*$', text, re.IGNORECASE | re.MULTILINE)
+    if m:
+        return text[:m.start()]
+    return text
+
+
 def analyze_proofreading(text, kb):
     whitelist = build_domain_whitelist(kb)
+    body_text = strip_references_section(text)
     return {
-        'spelling': check_spelling(text, whitelist),
-        'grammar': check_grammar(text),
-        'plagiarism': check_plagiarism(text, kb),
-        'internal_duplication': check_internal_duplication(text),
-        'missing_references': check_missing_references(text),
-        'conciseness': check_conciseness(text),
+        'spelling': check_spelling(body_text, whitelist),
+        'grammar': check_grammar(body_text),
+        'plagiarism': check_plagiarism(body_text, kb),
+        'internal_duplication': check_internal_duplication(body_text),
+        'missing_references': check_missing_references(body_text),
+        'conciseness': check_conciseness(body_text),
     }
 
 
@@ -760,6 +783,13 @@ def check_accessibility(path, text):
         findings = check_accessibility_pptx(path)
     elif ext == '.pdf':
         findings = check_accessibility_pdf(path)
+    elif ext in ('.png', '.jpg', '.jpeg'):
+        findings = [{
+            'check': 'Standalone image alternative text', 'wcag': '1.1.1 Non-text Content (Level A)', 'status': 'manual',
+            'detail': ('This is a standalone image file, so alt text isn\'t part of the file itself — it depends on where the image is used '
+                       '(e.g., the alt attribute when embedded on a webpage, or alt text in a document). Text visible in the image has been '
+                       'extracted via OCR and included in the fact-check above.'),
+        }]
     else:
         findings = [{
             'check': 'Format limitations', 'wcag': 'N/A', 'status': 'na',
@@ -808,6 +838,99 @@ def compute_accessibility_score(findings):
     else:
         zone = 'red'
     return {'score': score, 'zone': zone, 'breakdown': categories}
+
+
+def detect_quiz_spans(norm):
+    """Find quiz-style blocks (question stem + lettered options + an Answer: marker) so their
+    content isn't treated as the document's own assertions. Returns list of (start, end) spans."""
+    spans = []
+    for m in re.finditer(r'\banswer\s*[:\-]?\s*([a-e])\b', norm):
+        back_window_start = max(0, m.start() - 500)
+        back_window = norm[back_window_start:m.start()]
+        options = list(re.finditer(r'\b([a-e])[\.\)]', back_window, re.IGNORECASE))
+        if len(options) < 2:
+            continue  # not enough lettered options nearby — probably not a real quiz block
+        options_start = back_window_start + options[0].start()
+        q_pos = norm.rfind('?', 0, options_start)
+        if q_pos != -1 and options_start - q_pos < 400:
+            stem_start = norm.rfind('.', 0, q_pos)
+            block_start = stem_start + 1 if stem_start != -1 else 0
+        else:
+            block_start = options_start
+        block_end = m.end()
+        nxt_period = norm.find('.', block_end)
+        block_end = nxt_period + 1 if (nxt_period != -1 and nxt_period - block_end < 300) else min(len(norm), block_end + 100)
+        spans.append((max(0, block_start), block_end, m.group(1).upper()))
+    return spans
+
+
+def parse_quiz_options(block_text):
+    """Map each option letter to its own text, e.g. {'A': '28 days', 'B': '3 months', ...}."""
+    options = {}
+    matches = list(re.finditer(r'\b([a-e])[\.\)]\s*', block_text, re.IGNORECASE))
+    for i, m in enumerate(matches):
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(block_text)
+        options[m.group(1).upper()] = block_text[start:end].strip(' .')
+    return options
+
+
+def verify_quiz_answer(block_text, answer_letter, kb):
+    """Best-effort check of a quiz's stated correct answer against known guideline numeric facts
+    (3 vs 12 month rule, amantadine dose, CRS-R cutoff). Returns a list of finding dicts."""
+    findings = []
+    ans_marker = re.search(r'\banswer\b', block_text, re.IGNORECASE)
+    options_region = block_text[:ans_marker.start()] if ans_marker else block_text
+    options = parse_quiz_options(options_region)
+    chosen = options.get(answer_letter, '')
+    if not chosen:
+        return findings
+
+    first_option_pos = min((m.start() for m in re.finditer(r'\b[a-e][\.\)]', options_region, re.IGNORECASE)), default=len(options_region))
+    stem = options_region[:first_option_pos]
+
+    if ('permanent' in stem or 'discontinu' in stem) and ('vegetative' in stem or ' vs' in stem or 'uws' in stem):
+        nums = re.findall(r'(\d{1,2})\s*months?', chosen)
+        if nums:
+            stated = nums[0]
+            stem_norm = stem.replace('non-traumatic', 'nontraumatic')
+            if 'nontraumatic' in stem_norm and 'traumatic' not in stem_norm.replace('nontraumatic', ''):
+                if stated != '3':
+                    findings.append({'issue': f"Quiz answer states {stated} months for nontraumatic VS/UWS, but the guideline specifies 3 months.", 'rec': '7'})
+            elif 'traumatic' in stem_norm:
+                if stated != '12':
+                    findings.append({'issue': f"Quiz answer states {stated} months for traumatic VS/UWS, but the guideline specifies 12 months.", 'rec': '7'})
+
+    if 'amantadine' in stem:
+        m = re.search(r'(\d{2,4})\s*mg', chosen)
+        if m and m.group(1) not in ('100', '200'):
+            findings.append({'issue': f"Quiz answer states {m.group(1)} mg for amantadine, but the guideline specifies 100-200 mg twice daily.", 'rec': '14'})
+
+    if 'crs-r' in stem:
+        m = re.search(r'(\d{1,2})', chosen)
+        if m and int(m.group(1)) < 6:
+            findings.append({'issue': f"Quiz answer implies a CRS-R score of {m.group(1)} is favorable, but the guideline associates scores of 6 or higher with increased likelihood of recovery.", 'rec': '6'})
+
+    return findings
+
+
+def _flag_position(norm, flag):
+    matched = flag.get('matched', '')
+    if matched:
+        matched_norm = re.sub(r'\s+', ' ', matched.lower()).strip()
+        if matched_norm:
+            pos = norm.find(matched_norm)
+            if pos != -1:
+                return pos
+    ctx = flag.get('context', '')
+    if not ctx:
+        return -1
+    if ctx.startswith('...'):
+        ctx = ctx[3:]
+    if ctx.endswith('...'):
+        ctx = ctx[:-3]
+    ctx_norm = re.sub(r'\s+', ' ', ctx.lower()).strip()
+    return norm.find(ctx_norm)
 
 
 def run_checks(filepath, kb):
@@ -1012,7 +1135,8 @@ def run_checks(filepath, kb):
 
     strong_hits = [t for t in STRONG_ANCHOR_TERMS if t in norm]
     weak_hits = [t for t in WEAK_ANCHOR_TERMS if t in norm]
-    is_relevant = len(strong_hits) >= 1 or (len(strong_hits) + len(weak_hits)) >= 2
+    rec_sig_hit = any(re.search(p, norm) for patterns in REC_COVERAGE_SIGNATURES.values() for p in patterns)
+    is_relevant = len(strong_hits) >= 1 or (len(strong_hits) + len(weak_hits)) >= 2 or rec_sig_hit
 
     coverage = []
     if is_relevant:
@@ -1028,6 +1152,22 @@ def run_checks(filepath, kb):
             "coverage map and fact-check results below are not meaningful for unrelated content and have been suppressed.",
             None, '',
         )
+
+    quiz_spans = detect_quiz_spans(norm)
+    if quiz_spans:
+        surviving_flags = []
+        for f in flags:
+            pos = _flag_position(norm, f)
+            in_quiz = pos != -1 and any(s <= pos < e for s, e, _ in quiz_spans)
+            if in_quiz:
+                continue  # quiz stems/distractors reference terms as their subject, not as assertions
+            surviving_flags.append(f)
+        flags = surviving_flags
+
+        for start, end, answer_letter in quiz_spans:
+            block_text = norm[start:end]
+            for vf in verify_quiz_answer(block_text, answer_letter, kb):
+                add_flag(flags, 'Possible quiz answer error', 'high', f'quiz answer "{answer_letter}"', vf['issue'], vf.get('rec'), context(norm, start, end))
 
     order = {'high':0, 'medium':1, 'low':2}
     seen = set()
