@@ -18,6 +18,23 @@ os.makedirs(HISTORY_DIR, exist_ok=True)
 
 st.set_page_config(page_title='DoC Guideline Fact-Checker', page_icon='📋', layout='wide')
 
+MGB_DEEP_BLUE = '#003A96'
+MGB_TEAL = '#009CA6'
+MGB_TEXT = '#202020'
+
+st.markdown(f"""
+<style>
+    h1 {{ color: {MGB_DEEP_BLUE} !important; }}
+    h2 {{ color: {MGB_DEEP_BLUE} !important; border-bottom: 2px solid {MGB_TEAL}; padding-bottom: 0.3rem; }}
+    h3, h4 {{ color: {MGB_TEXT} !important; }}
+    [data-testid="stMetricValue"] {{ color: {MGB_DEEP_BLUE} !important; }}
+    [data-testid="stMetricLabel"] {{ color: {MGB_TEXT} !important; }}
+    .stProgress > div > div > div {{ background-color: {MGB_TEAL} !important; }}
+    hr {{ border-top: 1px solid {MGB_TEAL}; opacity: 0.5; }}
+    [data-testid="stTabs"] button[aria-selected="true"] {{ color: {MGB_DEEP_BLUE} !important; border-bottom-color: {MGB_DEEP_BLUE} !important; }}
+</style>
+""", unsafe_allow_html=True)
+
 
 import html as html_module
 
@@ -36,7 +53,7 @@ def render_wrapped_table(rows, columns=None):
     parts = ['<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">']
     parts.append('<thead><tr>')
     for c in columns:
-        parts.append(f'<th style="text-align:left; padding:6px 10px; border-bottom:2px solid var(--secondary-background-color, #ddd);">{esc(c)}</th>')
+        parts.append(f'<th style="text-align:left; padding:6px 10px; border-bottom:2px solid #009CA6; color:#003A96;">{esc(c)}</th>')
     parts.append('</tr></thead><tbody>')
     for row in rows:
         parts.append('<tr>')
@@ -402,6 +419,11 @@ with tab_check:
             except Exception as e:
                 st.error(f'Could not process this file: {e}')
 
+def label_for(e):
+    name = e.get('nickname', '').strip() or e['filename']
+    return f"{name} — {e['checked_at']}"
+
+
 with tab_history:
     history = load_history()
 
@@ -409,10 +431,6 @@ with tab_history:
         st.info('No materials reviewed yet. Check a document in the first tab to get started.')
     else:
         st.write(f'{len(history)} material(s) reviewed so far.')
-
-        def label_for(e):
-            name = e.get('nickname', '').strip() or e['filename']
-            return f"{name} — {e['checked_at']}"
 
         options = [label_for(e) for e in history]
         selected_label = st.selectbox('Select a previously reviewed material', options)
@@ -443,31 +461,44 @@ with tab_coverage:
     if not history:
         st.info('No materials reviewed yet. Check a document in the first tab to get started.')
     else:
-        # Build: rec_id -> list of {name, checked_at}
-        rec_hits = {rec['id']: [] for rec in kb['recommendations']}
-        for e in history:
-            name = e.get('nickname', '').strip() or e['filename']
-            for rid in e.get('coverage', []):
-                if rid in rec_hits:
-                    rec_hits[rid].append({'name': name, 'checked_at': e['checked_at']})
+        all_labels = [label_for(e) for e in history]
+        selected_labels = st.multiselect(
+            'Include these materials in the cumulative view',
+            options=all_labels,
+            default=all_labels,
+        )
+        included = [e for e, label in zip(history, all_labels) if label in selected_labels]
 
-        covered_count = sum(1 for rid, hits in rec_hits.items() if hits)
-        total_count = len(kb['recommendations'])
-        st.metric('Recommendations ever covered', f'{covered_count} of {total_count}')
-        st.progress(covered_count / total_count if total_count else 0)
+        if not included:
+            st.warning('No materials selected — pick at least one above to see coverage.')
+        else:
+            st.caption(f'Showing cumulative coverage across {len(included)} of {len(history)} reviewed material(s).')
 
-        rows = []
-        for rec in kb['recommendations']:
-            hits = rec_hits[rec['id']]
-            if hits:
-                docs_str = '; '.join(f"{h['name']} ({h['checked_at']})" for h in hits)
-            else:
-                docs_str = '—'
-            rows.append({
-                'Rec': rec['id'],
-                'Topic': rec['topic'],
-                'Level': '/'.join(rec['level']),
-                'Covered?': '✅' if hits else '',
-                'Covered by (material — date)': docs_str,
-            })
-        render_wrapped_table(rows)
+            # Build: rec_id -> list of {name, checked_at}
+            rec_hits = {rec['id']: [] for rec in kb['recommendations']}
+            for e in included:
+                name = e.get('nickname', '').strip() or e['filename']
+                for rid in e.get('coverage', []):
+                    if rid in rec_hits:
+                        rec_hits[rid].append({'name': name, 'checked_at': e['checked_at']})
+
+            covered_count = sum(1 for rid, hits in rec_hits.items() if hits)
+            total_count = len(kb['recommendations'])
+            st.metric('Recommendations covered', f'{covered_count} of {total_count}')
+            st.progress(covered_count / total_count if total_count else 0)
+
+            rows = []
+            for rec in kb['recommendations']:
+                hits = rec_hits[rec['id']]
+                if hits:
+                    docs_str = '; '.join(f"{h['name']} ({h['checked_at']})" for h in hits)
+                else:
+                    docs_str = '—'
+                rows.append({
+                    'Rec': rec['id'],
+                    'Topic': rec['topic'],
+                    'Level': '/'.join(rec['level']),
+                    'Covered?': '✅' if hits else '',
+                    'Covered by (material — date)': docs_str,
+                })
+            render_wrapped_table(rows)
