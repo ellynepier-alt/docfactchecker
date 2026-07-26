@@ -5,6 +5,56 @@ from docx.oxml.ns import qn
 
 SUPPORTED_EXTS = {'.txt', '.md', '.docx', '.pdf', '.pptx'}
 
+# Distinctive terms that indicate a document is actually about the DoC guideline subject
+# matter. Used to gate the coverage map so unrelated documents (e.g., about something
+# else entirely) don't get recommendations falsely checked off.
+# Terms distinctive enough to this exact guideline that a single mention is sufficient
+# evidence the document is on-topic.
+STRONG_ANCHOR_TERMS = [
+    'disorders of consciousness', 'vegetative state', 'unresponsive wakefulness',
+    'minimally conscious', ' mcs+', ' mcs-', 'crs-r', 'amantadine', 'locked-in syndrome',
+    'emcs', 'ptcs', 'confusional state', 'coma recovery scale', 'disability rating scale',
+    'multidisciplinary rehabilitation', 'neurorehabilitation', 'prognostication',
+]
+
+# Terms that are suggestive but common enough elsewhere that we require at least 2
+# total hits (from either tier) before treating the document as on-topic.
+WEAK_ANCHOR_TERMS = [
+    'traumatic brain injury', ' tbi ', ' coma', ' mcs ', 'brain injury', 'consciousness',
+    'intensivist', 'physiatrist', 'neurologist', 'rehabilitation team', 'behavioral evaluation',
+]
+
+DOMAIN_ANCHOR_TERMS = STRONG_ANCHOR_TERMS + WEAK_ANCHOR_TERMS
+
+# Precise phrase signatures per recommendation, used instead of loose single-word matching
+# (which caused false "covered" hits on unrelated documents). A recommendation is only
+# counted as covered if at least one genuinely distinctive phrase/pattern below is found.
+REC_COVERAGE_SIGNATURES = {
+    '1': [r'multidisciplinary rehabilitation', r'specialized rehabilitation', r'rehabilitation team', r'refer[^.]{0,40}rehabilitation'],
+    '2a': [r'standardized neurobehavioral assessment', r'standardized behavioral assessment', r'valid and reliable[^.]{0,30}assessment'],
+    '2b': [r'serial standardized (?:neurobehavioral|behavioral)? ?assessment', r'serial assessment'],
+    '2c': [r'increase arousal before', r'arousal before evaluation', r'diminished arousal'],
+    '2d': [r'confound[^.]{0,30}diagnosis', r'treat conditions[^.]{0,30}confound', r'confounding condition'],
+    '2e': [r'multimodal evaluation', r'multimodal assessment'],
+    '2f': [r'frequent reevaluation', r'frequent neurobehavioral reevaluation'],
+    '3': [r'universally poor prognosis', r'first 28 days', r'poor prognosis[^.]{0,30}28 days'],
+    '4': [r'serial standardized behavioral evaluation', r'trajectory of recovery', r'establishing prognosis'],
+    '5': [r'traumatic vs/uws', r'disability rating scale', r'\bdrs\b[^.]{0,30}(?:2-3 month|prognos)', r'spect scan', r'\bp300\b', r'eeg reactivity'],
+    '6': [r'nontraumatic post-anoxic', r'post-anoxic vs/uws', r'crs-r', r'somatosensory evoked potential', r'\bseps?\b'],
+    '7': [r'permanent vs\b', r'permanent vegetative state', r'chronic vs/uws', r'discontinue[^.]{0,30}terminology'],
+    '8': [r'prognostic factors', r'individual outcomes vary', r'traumatic etiology', r'nontraumatic etiology'],
+    '9': [r'goals of care', r'long-term disability', r'medical decision-making forms?'],
+    '10': [r'chronic phase', r'prognostic counseling'],
+    '11': [r'patient and family preferences', r'family preferences'],
+    '12': [r'medical complications', r'systematic assessment[^.]{0,30}(?:prevention|complication)'],
+    '13': [r'pain or suffering', r'pain and suffering', r'assess[^.]{0,30}\bpain\b'],
+    '14': [r'\bamantadine\b'],
+    '15': [r'nonvalidated treatment', r'non-validated treatment', r'limitations of evidence', r'evidence-based information'],
+    '16': [r'pediatric[^.]{0,30}diagnostic', r'children with prolonged doc'],
+    '17': [r'pediatric prognosis', r'children[^.]{0,30}prognosis', r'natural history[^.]{0,30}children'],
+    '18': [r'pediatric therap', r'no established therapies for children'],
+}
+
 
 def load_kb(path):
     with open(path, 'r', encoding='utf-8') as f:
@@ -97,11 +147,26 @@ def get_pdf_images(path):
 def extract_docx_textboxes(doc):
     """Text inside floating text boxes (e.g., diagram/decision-tree shapes) lives in
     <w:txbxContent> elements nested inside drawings, which doc.paragraphs/doc.tables
-    never reach. Walk the XML directly to pick these up."""
+    never reach. Walk the XML directly to pick these up.
+
+    Word stores each such shape twice for compatibility: once as modern DrawingML
+    (inside mc:Choice) and once as legacy VML (inside mc:Fallback), both with identical
+    text. We skip the Fallback copy so content isn't double-counted."""
     chunks = []
     for node in doc.element.body.iter():
         tag = node.tag.split('}')[-1] if isinstance(node.tag, str) else ''
         if tag != 'txbxContent':
+            continue
+        ancestor = node.getparent()
+        in_fallback = False
+        for _ in range(15):
+            if ancestor is None:
+                break
+            if ancestor.tag.split('}')[-1] == 'Fallback':
+                in_fallback = True
+                break
+            ancestor = ancestor.getparent()
+        if in_fallback:
             continue
         for p in node.findall('.//' + qn('w:p')):
             line = ''.join(t.text or '' for t in p.iter(qn('w:t')))
@@ -276,6 +341,176 @@ def analyze_clarity(text):
         'undefined_acronyms': undefined_acronyms,
         'passive_voice_count': passive_count,
         'suggestions': suggestions,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Proofreading: spelling, grammar (basic), plagiarism, missing references, conciseness
+# ---------------------------------------------------------------------------
+WORDY_PHRASES = {
+    'in order to': 'to', 'due to the fact that': 'because', 'at this point in time': 'now',
+    'a large number of': 'many', 'in the event that': 'if', 'with regard to': 'regarding',
+    'in spite of the fact that': 'although', 'for the purpose of': 'to',
+    'a majority of': 'most', 'in a timely manner': 'promptly', 'is able to': 'can',
+    'has the ability to': 'can', 'in the process of': '(often can be cut)',
+    'it is important to note that': '(often can be cut)', 'a number of': 'several',
+    'on a daily basis': 'daily', 'in close proximity to': 'near',
+}
+
+_EXTRA_DOMAIN_WORDS = {
+    'doc', 'docs', 'tbi', 'mcs', 'uws', 'vs', 'crs-r', 'crsr', 'drs', 'spect', 'pet', 'fmri',
+    'eeg', 'erp', 'sep', 'seps', 'tms', 'pci', 'emg', 'ptcs', 'emcs', 'aan', 'acrm', 'nidilrr',
+    'amantadine', 'physiatrist', 'intensivist', 'neurorehabilitation', 'prognostication',
+    'neuroimaging', 'electrophysiologic', 'unresponsiveness', 'subacute',
+}
+
+
+def build_domain_whitelist(kb):
+    words = set(_EXTRA_DOMAIN_WORDS)
+    for rec in kb.get('recommendations', []):
+        for token in re.findall(r"[A-Za-z']+", rec.get('topic', '') + ' ' + rec.get('text', '')):
+            if len(token) > 2:
+                words.add(token.lower())
+    for term in kb.get('terminology_definitions', []):
+        for token in re.findall(r"[A-Za-z']+", term.get('term', '') + ' ' + term.get('definition', '')):
+            words.add(token.lower())
+    for kf in kb.get('key_facts', []):
+        for token in re.findall(r"[A-Za-z']+", kf.get('fact', '')):
+            words.add(token.lower())
+    return words
+
+
+def check_spelling(text, whitelist):
+    try:
+        from spellchecker import SpellChecker
+    except Exception:
+        return []
+    sc = SpellChecker()
+    sc.word_frequency.load_words(whitelist)
+
+    words = re.findall(r"[A-Za-z']+", text)
+    counts = {}
+    for w in words:
+        if len(w) < 3 or w.isupper() or any(ch.isdigit() for ch in w):
+            continue
+        wl = w.lower()
+        if wl in whitelist:
+            continue
+        counts[wl] = counts.get(wl, 0) + 1
+
+    if not counts:
+        return []
+    unknown = sc.unknown(list(counts.keys()))
+    results = []
+    for w in sorted(unknown, key=lambda x: -counts[x])[:20]:
+        results.append({'word': w, 'count': counts[w], 'suggestion': sc.correction(w)})
+    return results
+
+
+_GRAMMAR_ABBREVIATIONS = {
+    'e.g.', 'i.e.', 'etc.', 'vs.', 'fig.', 'al.', 'approx.', 'vol.', 'pp.',
+    'no.', 'jr.', 'sr.', 'st.', 'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'inc.', 'ltd.',
+}
+
+
+def check_grammar(text):
+    issues = []
+    for m in re.finditer(r'\b(\w+)\s+\1\b', text, re.IGNORECASE):
+        issues.append({'issue': f'Repeated word: "{m.group(1)}"', 'context': text[max(0, m.start() - 40):m.end() + 40].strip()})
+    if '  ' in text:
+        first = text.find('  ')
+        issues.append({'issue': 'Multiple consecutive spaces found.', 'context': text[max(0, first - 30):first + 30].strip()})
+    for m in re.finditer(r'(\S+)([.!?])\s+([a-z])', text):
+        preceding_token = m.group(1)
+        combined = (preceding_token + m.group(2)).lower()
+        if any(combined.endswith(ab) for ab in _GRAMMAR_ABBREVIATIONS):
+            continue
+        if re.fullmatch(r'\(?[0-9]{1,3}\)?|\(?[a-z]\)?|\(?[ivxlcdm]{1,4}\)?', preceding_token, re.IGNORECASE):
+            continue  # likely a list marker like "1." "a." "iv." — not a real sentence boundary
+        issues.append({'issue': 'Sentence may need to start with a capital letter.', 'context': text[max(0, m.start() - 20):m.start() + 25].strip()})
+    if text.count('(') != text.count(')'):
+        issues.append({'issue': 'Unmatched parentheses found in the document.', 'context': ''})
+    if text.count('"') % 2 != 0:
+        issues.append({'issue': 'Unmatched double-quote mark found in the document.', 'context': ''})
+    return issues[:20]
+
+
+def check_plagiarism(text, kb):
+    ref_sentences = []
+    for rec in kb.get('recommendations', []):
+        ref_sentences.append((f"Recommendation {rec['id']}", rec['text']))
+    for term in kb.get('terminology_definitions', []):
+        ref_sentences.append((term['term'], term['definition']))
+
+    def ngrams(s, n=8):
+        w = re.findall(r"[a-z']+", s.lower())
+        return set(tuple(w[i:i + n]) for i in range(len(w) - n + 1)) if len(w) >= n else set()
+
+    ref_ngrams = [(label, ngrams(rt)) for label, rt in ref_sentences]
+    doc_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+
+    findings = []
+    for ds in doc_sentences:
+        dg = ngrams(ds)
+        if not dg:
+            continue
+        for label, rg in ref_ngrams:
+            if dg & rg:
+                has_quotes = '"' in ds or '\u201c' in ds or '\u201d' in ds or "'" in ds
+                findings.append({'matched_source': label, 'sentence': ds[:220], 'quoted': has_quotes})
+                break
+    return findings[:10]
+
+
+def check_internal_duplication(text):
+    paras = [p.strip() for p in re.split(r'\n', text) if len(p.strip()) > 40]
+    seen = {}
+    dups = []
+    for p in paras:
+        key = re.sub(r'\s+', ' ', p.lower())
+        if key in seen:
+            dups.append(p[:180])
+        else:
+            seen[key] = True
+    return dups[:10]
+
+
+_CLAIM_INDICATOR = re.compile(
+    r'\b(?:studies show|research shows|shown to|proven to|according to|evidence suggests|data indicates|'
+    r'studies indicate|clinical trials|meta-analysis|systematic review|significantly (?:higher|lower|increases|decreases|improves))\b',
+    re.IGNORECASE)
+_STAT_PATTERN = re.compile(r'\b\d{1,3}(?:\.\d+)?\s?%|\bp\s*[<=]\s*0\.\d+')
+_CITATION_PATTERN = re.compile(r'\(\s*[A-Z][a-zA-Z]+(?:\s+et al\.?)?,?\s*\d{4}\s*\)|\[\d+\]|https?://|doi\.org')
+
+
+def check_missing_references(text):
+    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    flagged = []
+    for s in sentences:
+        if (_CLAIM_INDICATOR.search(s) or _STAT_PATTERN.search(s)) and not _CITATION_PATTERN.search(s):
+            flagged.append(s[:220])
+    return flagged[:10]
+
+
+def check_conciseness(text):
+    low = text.lower()
+    findings = []
+    for phrase, suggestion in WORDY_PHRASES.items():
+        count = low.count(phrase)
+        if count:
+            findings.append({'phrase': phrase, 'count': count, 'suggestion': suggestion})
+    return findings
+
+
+def analyze_proofreading(text, kb):
+    whitelist = build_domain_whitelist(kb)
+    return {
+        'spelling': check_spelling(text, whitelist),
+        'grammar': check_grammar(text),
+        'plagiarism': check_plagiarism(text, kb),
+        'internal_duplication': check_internal_duplication(text),
+        'missing_references': check_missing_references(text),
+        'conciseness': check_conciseness(text),
     }
 
 
@@ -671,6 +906,39 @@ def run_checks(filepath, kb):
 
     for m in re.finditer(r'locked-in syndrome[^.]{0,150}?vegetative state', norm):
         add_flag(flags, 'Terminology', 'high', 'locked-in syndrome ... vegetative state', 'Locked-in syndrome (tetraplegia, anarthria, near-normal cognition) is a distinct condition that can be misdiagnosed as VS/UWS. It is not itself a disorder of consciousness and should not be equated with vegetative state.', None, context(norm, m.start(), m.end()))
+
+    # Untrained clinicians / non-standardized assessments — contradicts Recs 1 & 4 (specialized,
+    # trained multidisciplinary teams performing STANDARDIZED behavioral evaluations).
+    for m in re.finditer(r'untrained clinicians?', norm):
+        win = sentence_window(norm, m.start(), m.end())
+        if re.search(r'non[\s-]?standardized|unstandardized', win):
+            add_flag(flags, 'Possible contradiction', 'high', 'untrained clinicians ... non-standardized assessment',
+                      'Guideline Recommendations 1 and 4 call for specialized, trained multidisciplinary teams to perform serial STANDARDIZED '
+                      'behavioral evaluations — the opposite of untrained clinicians using non-standardized assessments.',
+                      '4', context(norm, m.start(), m.end()))
+    for m in re.finditer(r'non[\s-]?standardized\s+assessments?', norm):
+        win = sentence_window(norm, m.start(), m.end())
+        if not re.search(r'untrained clinicians?', win):  # avoid double-flagging the same sentence
+            add_flag(flags, 'Possible contradiction', 'high', 'non-standardized assessment recommended',
+                      'Guideline Recommendation 4 calls for performing serial STANDARDIZED behavioral evaluations to establish prognosis (Level B) — '
+                      'not non-standardized assessments.',
+                      '4', context(norm, m.start(), m.end()))
+
+    # Premature withdrawal of life-sustaining treatment before the 28-day window — contradicts Rec 3
+    # (must avoid statements suggesting a universally poor prognosis during the first 28 days, Level A).
+    for m in re.finditer(r'withdrawal of life[\s-]?sustaining treatments?|withdraw(?:ing)? life[\s-]?sustaining treatments?', norm):
+        win = sentence_window(norm, m.start(), m.end())
+        time_match = re.search(r'(\d{1,3})\s*[- ]?\s*(hour|day)s?\b', win)
+        if time_match:
+            qty = int(time_match.group(1))
+            unit = time_match.group(2)
+            hours = qty if unit == 'hour' else qty * 24
+            if hours < 672:  # 28 days
+                add_flag(flags, 'Possible contradiction', 'high', f'withdrawal of life-sustaining treatment ... {qty} {unit}(s)',
+                          f'Guideline Recommendation 3 states clinicians MUST avoid statements suggesting a universally poor prognosis during the '
+                          f'first 28 days post injury (Level A). Recommending withdrawal of life-sustaining treatment based on early appearance, '
+                          f'well before the 28-day window ({qty} {unit}(s) here), directly contradicts this.',
+                          '3', context(norm, m.start(), m.end()))
     for m in re.finditer(r'vegetative state[^.]{0,150}?locked-in syndrome', norm):
         add_flag(flags, 'Terminology', 'high', 'vegetative state ... locked-in syndrome', 'Locked-in syndrome (tetraplegia, anarthria, near-normal cognition) is a distinct condition that can be misdiagnosed as VS/UWS. It is not itself a disorder of consciousness and should not be equated with vegetative state.', None, context(norm, m.start(), m.end()))
 
@@ -742,11 +1010,24 @@ def run_checks(filepath, kb):
         if best and cited not in best[3]:
             add_flag(flags, 'Evidence-level mismatch', 'high', f'Level {cited} near {best[1]}', f'Material cites Level {cited}, but guideline recommendation {best[2]} is Level {"/".join(best[3])}.', best[2], context(text, m.start(), m.end()))
 
+    strong_hits = [t for t in STRONG_ANCHOR_TERMS if t in norm]
+    weak_hits = [t for t in WEAK_ANCHOR_TERMS if t in norm]
+    is_relevant = len(strong_hits) >= 1 or (len(strong_hits) + len(weak_hits)) >= 2
+
     coverage = []
-    for rec in kb['recommendations']:
-        topic_words = [w.lower() for w in rec['topic'].replace('/', ' ').split() if len(w) > 4]
-        if any(w in low for w in topic_words):
-            coverage.append(rec['id'])
+    if is_relevant:
+        for rec in kb['recommendations']:
+            patterns = REC_COVERAGE_SIGNATURES.get(rec['id'], [])
+            if any(re.search(p, norm) for p in patterns):
+                coverage.append(rec['id'])
+    else:
+        add_flag(
+            flags, 'Document relevance', 'high', '(no guideline-related terms detected)',
+            f"This document does not appear to be about the {kb['meta']['title']} guideline — very few or no related clinical terms "
+            "(e.g., vegetative state, minimally conscious state, disorders of consciousness, CRS-R, TBI) were found. The recommendation "
+            "coverage map and fact-check results below are not meaningful for unrelated content and have been suppressed.",
+            None, '',
+        )
 
     order = {'high':0, 'medium':1, 'low':2}
     seen = set()
@@ -768,6 +1049,7 @@ def run_checks(filepath, kb):
         'clarity': analyze_clarity(text),
         'accessibility': accessibility_findings,
         'accessibility_score': compute_accessibility_score(accessibility_findings),
+        'proofreading': analyze_proofreading(text, kb),
     }
 
 
