@@ -387,7 +387,7 @@ tab_check, tab_history, tab_coverage = st.tabs(['Check a document', 'Previously 
 
 with tab_check:
     st.write(
-        'Upload a document (PDF, DOCX, PPTX, TXT, or MD) and this tool will flag '
+        'Upload a document (PDF, DOCX, PPTX, PNG, JPEG, TXT, or MD) and this tool will flag '
         'places where the content may conflict with the DoC clinical guideline.'
     )
 
