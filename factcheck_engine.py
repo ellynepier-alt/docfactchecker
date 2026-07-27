@@ -841,33 +841,35 @@ def compute_accessibility_score(findings):
 
 
 def detect_quiz_spans(norm):
-    """Find quiz-style blocks (question stem + lettered options + an Answer: marker) so their
-    content isn't treated as the document's own assertions. Returns list of (start, end) spans."""
+    """Find quiz-style blocks (question stem + lettered/numbered options + an Answer: marker) so
+    their content isn't treated as the document's own assertions. Returns list of (start, end, answer_letter).
+
+    Each question's stem is bounded by the end of the PREVIOUS question's span (so consecutive
+    questions can't bleed into each other) and capped at a max lookback distance (so a quiz late
+    in a long document doesn't swallow unrelated preceding prose)."""
     spans = []
-    for m in re.finditer(r'\banswer\s*[:\-]?\s*([a-e])\b', norm):
-        back_window_start = max(0, m.start() - 500)
-        back_window = norm[back_window_start:m.start()]
-        options = list(re.finditer(r'\b([a-e])[\.\)]', back_window, re.IGNORECASE))
+    prev_end = 0
+    MAX_STEM_LOOKBACK = 600
+    for m in re.finditer(r'\banswer\s*[:\-]?\s*([a-e]|\d{1,2})\b', norm, re.IGNORECASE):
+        region_start = prev_end
+        region = norm[region_start:m.start()]
+        options = list(re.finditer(r'(?:(?<=[\s.])|^)([a-e]|\d{1,2})[\.\)]\s', region, re.IGNORECASE))
         if len(options) < 2:
-            continue  # not enough lettered options nearby — probably not a real quiz block
-        options_start = back_window_start + options[0].start()
-        q_pos = norm.rfind('?', 0, options_start)
-        if q_pos != -1 and options_start - q_pos < 400:
-            stem_start = norm.rfind('.', 0, q_pos)
-            block_start = stem_start + 1 if stem_start != -1 else 0
-        else:
-            block_start = options_start
+            continue  # not enough lettered/numbered options nearby — probably not a real quiz block
+        first_option_pos = region_start + options[0].start()
+        stem_start = max(region_start, first_option_pos - MAX_STEM_LOOKBACK)
         block_end = m.end()
         nxt_period = norm.find('.', block_end)
         block_end = nxt_period + 1 if (nxt_period != -1 and nxt_period - block_end < 300) else min(len(norm), block_end + 100)
-        spans.append((max(0, block_start), block_end, m.group(1).upper()))
+        spans.append((stem_start, block_end, m.group(1).upper()))
+        prev_end = block_end
     return spans
 
 
 def parse_quiz_options(block_text):
-    """Map each option letter to its own text, e.g. {'A': '28 days', 'B': '3 months', ...}."""
+    """Map each option letter/number to its own text, e.g. {'A': '28 days', 'B': '3 months', ...}."""
     options = {}
-    matches = list(re.finditer(r'\b([a-e])[\.\)]\s*', block_text, re.IGNORECASE))
+    matches = list(re.finditer(r'\b([a-e]|\d{1,2})[\.\)]\s*', block_text, re.IGNORECASE))
     for i, m in enumerate(matches):
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(block_text)
