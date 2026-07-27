@@ -853,7 +853,7 @@ def detect_quiz_spans(norm):
     for m in re.finditer(r'\banswer\s*[:\-]?\s*([a-e]|\d{1,2})\b', norm, re.IGNORECASE):
         region_start = prev_end
         region = norm[region_start:m.start()]
-        options = list(re.finditer(r'(?:(?<=[\s.])|^)([a-e]|\d{1,2})[\.\)]\s', region, re.IGNORECASE))
+        options = list(re.finditer(r'(?:(?<=[\s.])|^)(?:[a-e][\.\)]|\d{1,2}\))\s', region, re.IGNORECASE))
         if len(options) < 2:
             continue  # not enough lettered/numbered options nearby — probably not a real quiz block
         first_option_pos = region_start + options[0].start()
@@ -867,9 +867,11 @@ def detect_quiz_spans(norm):
 
 
 def parse_quiz_options(block_text):
-    """Map each option letter/number to its own text, e.g. {'A': '28 days', 'B': '3 months', ...}."""
+    """Map each option letter to its own text, e.g. {'A': '28 days', 'B': '3 months', ...}.
+    Letters only (not numbered 1/2/3) — numbered matching corrupted parsing whenever an option's
+    own text ended in a number (e.g., "a total score of 2", "(Score: 2)"), which is extremely common."""
     options = {}
-    matches = list(re.finditer(r'\b([a-e]|\d{1,2})[\.\)]\s*', block_text, re.IGNORECASE))
+    matches = list(re.finditer(r'\b([a-e])[\.\)]\s*', block_text, re.IGNORECASE))
     for i, m in enumerate(matches):
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(block_text)
@@ -909,9 +911,12 @@ def verify_quiz_answer(block_text, answer_letter, kb):
             findings.append({'issue': f"Quiz answer states {m.group(1)} mg for amantadine, but the guideline specifies 100-200 mg twice daily.", 'rec': '14'})
 
     if 'crs-r' in stem:
-        m = re.search(r'(\d{1,2})', chosen)
-        if m and int(m.group(1)) < 6:
-            findings.append({'issue': f"Quiz answer implies a CRS-R score of {m.group(1)} is favorable, but the guideline associates scores of 6 or higher with increased likelihood of recovery.", 'rec': '6'})
+        subscale_keywords = ('auditory', 'visual', 'motor', 'oromotor', 'verbal', 'communication', 'arousal')
+        subscale_hits = sum(1 for kw in subscale_keywords if kw in chosen.lower())
+        if subscale_hits < 2:  # not a subscale-breakdown answer, so a bare number plausibly means a total/overall score
+            m = re.search(r'(?:total\s+)?score[^.]{0,20}?(?:of\s*)?(\d{1,2})\b', chosen, re.IGNORECASE)
+            if m and int(m.group(1)) < 6:
+                findings.append({'issue': f"Quiz answer implies a CRS-R score of {m.group(1)} is favorable, but the guideline associates scores of 6 or higher with increased likelihood of recovery.", 'rec': '6'})
 
     return findings
 
