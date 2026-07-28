@@ -66,6 +66,24 @@ def load_kb(path):
         return json.load(f)
 
 
+_OCR_STATUS = {}
+
+
+def check_ocr_engine_available():
+    """Check once whether the Tesseract OCR engine is actually reachable (not just the Python
+    wrapper). Cached after the first call. Used to distinguish 'OCR is broken' from 'this image
+    genuinely has no text in it' — the two look identical (empty string) without this check."""
+    if 'available' in _OCR_STATUS:
+        return _OCR_STATUS['available']
+    try:
+        import pytesseract
+        pytesseract.get_tesseract_version()
+        _OCR_STATUS['available'] = True
+    except Exception:
+        _OCR_STATUS['available'] = False
+    return _OCR_STATUS['available']
+
+
 def ocr_image_bytes(image_bytes):
     """Run OCR on raw image bytes; return empty string on any failure (corrupt/unsupported image, no OCR engine, etc.)."""
     try:
@@ -940,8 +958,30 @@ def _flag_position(norm, flag):
     return norm.find(ctx_norm)
 
 
+def compute_ocr_warning(filepath, text):
+    ext = os.path.splitext(filepath)[1].lower()
+    image_dependent_exts = ('.png', '.jpg', '.jpeg')
+    image_containing_exts = ('.docx', '.pptx', '.pdf')
+
+    if ext in image_dependent_exts:
+        if not check_ocr_engine_available():
+            return ("The OCR engine (Tesseract) isn't available in this environment, so no text could be extracted from this image. "
+                    "Everything below will be empty or inaccurate — this image was NOT actually fact-checked. "
+                    "Contact your administrator to verify Tesseract is installed (see packages.txt).")
+        if not text.strip():
+            return ("No readable text was detected in this image via OCR. If the image does contain text, try a higher-resolution "
+                    "version — otherwise this image was not fact-checked because there was nothing to check.")
+    elif ext in image_containing_exts:
+        if not check_ocr_engine_available():
+            return ("The OCR engine (Tesseract) isn't available in this environment, so text inside any images embedded in this "
+                    "document (charts, diagrams, screenshots) was NOT extracted or fact-checked — only the document's regular "
+                    "text was checked. Contact your administrator to verify Tesseract is installed (see packages.txt).")
+    return None
+
+
 def run_checks(filepath, kb):
     text = extract_text(filepath)
+    ocr_warning = compute_ocr_warning(filepath, text)
     flags = []
     low = text.lower()
     norm = re.sub(r'[ \t]*\n+[ \t]*', '. ', low)
@@ -1197,6 +1237,7 @@ def run_checks(filepath, kb):
         'accessibility': accessibility_findings,
         'accessibility_score': compute_accessibility_score(accessibility_findings),
         'proofreading': analyze_proofreading(text, kb),
+        'ocr_warning': ocr_warning,
     }
 
 
