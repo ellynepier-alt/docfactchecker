@@ -1,4 +1,4 @@
-import os, re, json, tempfile
+import os, re, json, tempfile, unicodedata
 from docx import Document
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
@@ -198,7 +198,29 @@ def extract_docx_textboxes(doc):
     return chunks
 
 
+def normalize_extracted_text(text):
+    """Normalize characters that commonly defeat literal pattern matching but are
+    invisible or near-invisible to a human reader: non-breaking spaces (common in
+    text copied from Word or extracted from PDFs), soft hyphens, smart quotes/dashes,
+    and Unicode compatibility forms (e.g. the ligature 'fi' that some PDF extractors
+    emit as a single glyph, which silently breaks substring matches on words like
+    "significant"). Applied once right after extraction so every check downstream
+    benefits without needing to special-case these."""
+    if not text:
+        return text
+    text = unicodedata.normalize('NFKC', text)
+    text = text.replace('\xa0', ' ').replace('\u202f', ' ').replace('\u00ad', '')
+    text = text.replace('\u2018', "'").replace('\u2019', "'")
+    text = text.replace('\u201c', '"').replace('\u201d', '"')
+    text = text.replace('\u2013', '-').replace('\u2014', '-')
+    return text
+
+
 def extract_text(path):
+    return normalize_extracted_text(_extract_text_raw(path))
+
+
+def _extract_text_raw(path):
     ext = os.path.splitext(path)[1].lower()
     if ext in ['.txt', '.md']:
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -250,6 +272,35 @@ def context(text, start, end, width=160):
     lo = max(0, start - width); hi = min(len(text), end + width)
     out = re.sub(r'\s+', ' ', text[lo:hi]).strip()
     return ('...' if lo else '') + out + ('...' if hi < len(text) else '')
+
+
+def flexible_pattern(pattern):
+    """Turn a literal KB pattern (e.g. "permanent vegetative state") into a regex that
+    still matches when real documents introduce irregular whitespace between the words
+    — a line wrap, a table-cell boundary, a paragraph break turned into a period by the
+    normalizer, double spaces, etc. Hyphens are similarly tolerant of surrounding
+    whitespace (so "permanent-vegetative" and "permanent - vegetative" both match a
+    pattern written with a plain hyphen). This is what makes exact-substring KB entries
+    survive real-world document formatting instead of only matching a single perfectly
+    -typed rendering of the phrase.
+
+    Word gaps also tolerate a stray period: `norm` (built in run_checks) converts every
+    paragraph/table-cell/slide/PDF-page boundary into ". ", since separate extraction
+    chunks are joined with newlines. A phrase split exactly at one of those boundaries
+    — very common for PDF page breaks and Word diagram text boxes — would otherwise
+    still fail to match even after whitespace is made flexible."""
+    parts = re.split(r'(\s+|-)', pattern)
+    out = []
+    for part in parts:
+        if not part:
+            continue
+        if part.isspace():
+            out.append(r'(?:\s|\.)+')
+        elif part == '-':
+            out.append(r'[\s.-]*')
+        else:
+            out.append(re.escape(part))
+    return ''.join(out)
 
 
 def add_flag(flags, kind, severity, matched, issue, rec, ctx):
@@ -1006,13 +1057,20 @@ def run_checks(filepath, kb):
     norm = re.sub(r'\s+', ' ', norm)
     norm = re.sub(r'\.\s*\.', '.', norm)
 
+    # NOTE: matching happens against `norm` (whitespace-collapsed), not `low`/`text`.
+    # KB patterns are plain literal phrases by default, compiled into a regex that
+    # tolerates real-world whitespace/hyphen irregularities (see flexible_pattern).
+    # Set "regex": true on a KB entry to write the pattern as a raw regex instead
+    # (e.g. to match rephrasings like "no chance of recovery|no possibility of recovery").
     for f in kb['terminology_flags']:
-        for m in re.finditer(re.escape(f['pattern'].lower()), low):
-            add_flag(flags, 'Terminology', f['severity'], text[m.start():m.end()], f['issue'], f.get('rec'), context(text, m.start(), m.end()))
+        pattern = f['pattern'] if f.get('regex') else flexible_pattern(f['pattern'].lower())
+        for m in re.finditer(pattern, norm, re.IGNORECASE):
+            add_flag(flags, 'Terminology', f['severity'], norm[m.start():m.end()], f['issue'], f.get('rec'), context(norm, m.start(), m.end()))
 
     for f in kb['contradiction_flags']:
-        for m in re.finditer(re.escape(f['pattern'].lower()), low):
-            add_flag(flags, 'Possible contradiction', f['severity'], text[m.start():m.end()], f['issue'], f.get('rec'), context(text, m.start(), m.end()))
+        pattern = f['pattern'] if f.get('regex') else flexible_pattern(f['pattern'].lower())
+        for m in re.finditer(pattern, norm, re.IGNORECASE):
+            add_flag(flags, 'Possible contradiction', f['severity'], norm[m.start():m.end()], f['issue'], f.get('rec'), context(norm, m.start(), m.end()))
 
     if 'amantadine' in norm:
         for m in re.finditer(r'amantadine[^.]{0,80}?(\d{2,4})\s*mg', norm):
