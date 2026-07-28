@@ -260,6 +260,16 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
                         st.write(f"**Related recommendation:** {flag['rec']}")
                 if flag['context']:
                     st.caption(f"Context: {flag['context']}")
+                ai_review = flag.get('ai_review')
+                if ai_review:
+                    verdict = ai_review.get('verdict', '')
+                    if verdict == 'unavailable':
+                        st.caption(f"AI review: unavailable — {ai_review.get('reason', '')}")
+                    else:
+                        verdict_kind = 'covered' if 'false positive' in verdict else ('fail' if 'real issue' in verdict else 'warn')
+                        st.markdown(f"AI review: {badge(verdict, verdict_kind)}", unsafe_allow_html=True)
+                        if ai_review.get('reason'):
+                            st.caption(ai_review['reason'])
 
     st.markdown('#### Recommendation coverage map')
     st.caption('Which guideline recommendations your document actually touches on.')
@@ -471,6 +481,29 @@ with tab_check:
     )
     nickname_input = st.text_input('Nickname for this document (optional)', placeholder='e.g., "Family handout draft 2"')
 
+    try:
+        gemini_api_key = st.secrets.get('GEMINI_API_KEY', os.environ.get('GEMINI_API_KEY', ''))
+    except Exception:
+        gemini_api_key = os.environ.get('GEMINI_API_KEY', '')
+    ai_review_enabled = st.checkbox(
+        'Double-check "Worth double-checking" flags with AI (Gemini)',
+        value=False,
+        help='Sends only the flagged sentence and its surrounding context (not the whole document) to '
+             'Google\'s Gemini API to sanity-check flags prone to false positives. Do not enable this on '
+             'documents containing PHI or other confidential/regulated content — see the note below.',
+    )
+    if ai_review_enabled:
+        if not gemini_api_key:
+            st.warning(
+                'No Gemini API key configured. Add GEMINI_API_KEY to your Streamlit secrets or environment '
+                'to use this — get a free key at aistudio.google.com. AI double-checking will be skipped '
+                'for this run.'
+            )
+        st.caption(
+            'On Google\'s free API tier, submitted text may be used to improve their models and is not '
+            'HIPAA/BAA-eligible. Only use this on non-PHI, non-confidential material — same policy as the rest of this tool.'
+        )
+
     if uploaded_file is not None and st.button('Run fact-check', type='primary'):
         with st.spinner('Checking document against guideline...'):
             temp_dir = tempfile.mkdtemp(prefix='doc_factcheck_')
@@ -479,7 +512,7 @@ with tab_check:
                 f.write(uploaded_file.getbuffer())
 
             try:
-                result = run_checks(in_path, kb)
+                result = run_checks(in_path, kb, verify_with_llm=ai_review_enabled, llm_api_key=gemini_api_key)
                 counts = counts_from_flags(result['flags'])
                 entry = add_history_entry(uploaded_file.name, result, counts, nickname=nickname_input)
 
