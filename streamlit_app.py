@@ -99,6 +99,7 @@ def add_history_entry(filename, result, counts, nickname=None):
         'accessibility': result['accessibility'],
         'accessibility_score': result.get('accessibility_score', default_accessibility_score()),
         'proofreading': result.get('proofreading', default_proofreading()),
+        'ocr_warning': result.get('ocr_warning'),
     }
     entries.insert(0, entry)
     save_history(entries)
@@ -148,12 +149,15 @@ def counts_from_flags(flags):
 # ---------------------------------------------------------------------------
 # Shared rendering for a result (used for both fresh checks and history)
 # ---------------------------------------------------------------------------
-def render_result(filename, counts, flags, coverage, clarity, accessibility, accessibility_score, proofreading, kb, nickname=None, checked_at=None, key_suffix=None):
+def render_result(filename, counts, flags, coverage, clarity, accessibility, accessibility_score, proofreading, kb, nickname=None, checked_at=None, key_suffix=None, ocr_warning=None):
     display_name = nickname.strip() if nickname and nickname.strip() else filename
     caption = display_name if not checked_at else f'{display_name} — checked {checked_at}'
     st.subheader(caption)
     if nickname and nickname.strip():
         st.caption(f"Original file: {filename}")
+
+    if ocr_warning:
+        st.error(f"⚠️ OCR issue: {ocr_warning}")
 
     st.caption(f"Guideline: {kb['meta']['title']} ({kb['meta']['year']}) — {kb['meta']['citation']}")
 
@@ -414,6 +418,7 @@ with tab_check:
                     entry['filename'], entry['counts'], entry['flags'], entry['coverage'],
                     entry['clarity'], entry['accessibility'], entry['accessibility_score'], entry['proofreading'], kb,
                     nickname=entry.get('nickname'), checked_at=entry['checked_at'], key_suffix=f"check_{entry['id']}",
+                    ocr_warning=entry.get('ocr_warning'),
                 )
 
             except Exception as e:
@@ -451,7 +456,24 @@ with tab_history:
             selected_entry.get('accessibility_score', default_accessibility_score()),
             selected_entry.get('proofreading', default_proofreading()), kb,
             nickname=selected_entry.get('nickname'), checked_at=selected_entry['checked_at'], key_suffix=f"history_{selected_entry['id']}",
+            ocr_warning=selected_entry.get('ocr_warning'),
         )
+
+import io
+import pandas as pd
+
+
+def build_excel_bytes(rows, sheet_name='Cumulative Coverage'):
+    df = pd.DataFrame(rows)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+        worksheet = writer.sheets[sheet_name]
+        for col_idx, col in enumerate(df.columns, start=1):
+            max_len = max(df[col].astype(str).map(len).max() if len(df) else 0, len(col))
+            worksheet.column_dimensions[worksheet.cell(row=1, column=col_idx).column_letter].width = min(max_len + 2, 60)
+    return buffer.getvalue()
+
 
 with tab_coverage:
     st.write('A running record of which guideline recommendations have ever been addressed, across every material checked so far, and by which document(s).')
@@ -502,3 +524,11 @@ with tab_coverage:
                     'Covered by (material — date)': docs_str,
                 })
             render_wrapped_table(rows)
+
+            excel_bytes = build_excel_bytes(rows)
+            st.download_button(
+                label='📥 Download cumulative coverage as Excel (.xlsx)',
+                data=excel_bytes,
+                file_name=f'cumulative_coverage_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
