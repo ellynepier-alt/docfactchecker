@@ -288,14 +288,18 @@ def flexible_pattern(pattern):
     paragraph/table-cell/slide/PDF-page boundary into ". ", since separate extraction
     chunks are joined with newlines. A phrase split exactly at one of those boundaries
     — very common for PDF page breaks and Word diagram text boxes — would otherwise
-    still fail to match even after whitespace is made flexible."""
+    still fail to match even after whitespace is made flexible.
+
+    Word gaps also tolerate a hyphen standing in for a space (so a pattern written as
+    "brain dead" still matches "brain-dead"), since documents are inconsistent about
+    which one they use for the same phrase."""
     parts = re.split(r'(\s+|-)', pattern)
     out = []
     for part in parts:
         if not part:
             continue
         if part.isspace():
-            out.append(r'(?:\s|\.)+')
+            out.append(r'(?:\s|\.|-)+')
         elif part == '-':
             out.append(r'[\s.-]*')
         else:
