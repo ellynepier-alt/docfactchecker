@@ -69,6 +69,13 @@ st.markdown(f"""
     div[data-testid="stExpander"] {{
         border: 1px solid {MGB_BORDER} !important; border-radius: 8px !important;
     }}
+
+    /* Multiselect tags (e.g. "Include these materials in the cumulative view") render
+       with a dark blue background — force the label and the x/close icon to white so
+       they're actually readable against it. */
+    span[data-baseweb="tag"] {{ color: #FFFFFF !important; }}
+    span[data-baseweb="tag"] span {{ color: #FFFFFF !important; }}
+    span[data-baseweb="tag"] svg {{ fill: #FFFFFF !important; }}
 </style>
 """, unsafe_allow_html=True)
 
