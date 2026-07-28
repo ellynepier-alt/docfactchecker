@@ -503,9 +503,16 @@ with tab_check:
             'On Google\'s free API tier, submitted text may be used to improve their models and is not '
             'HIPAA/BAA-eligible. Only use this on non-PHI, non-confidential material — same policy as the rest of this tool.'
         )
+        st.caption(
+            'Every flag gets checked, paced to stay within the free tier\'s rate limit (~9/minute) rather than '
+            'capped at a fixed number — documents with many flags will take longer to finish.'
+        )
 
     if uploaded_file is not None and st.button('Run fact-check', type='primary'):
-        with st.spinner('Checking document against guideline...'):
+        spinner_text = 'Checking document against guideline...'
+        if ai_review_enabled and gemini_api_key:
+            spinner_text += ' AI double-checking is on, so this may take a while for documents with many flags.'
+        with st.spinner(spinner_text):
             temp_dir = tempfile.mkdtemp(prefix='doc_factcheck_')
             in_path = os.path.join(temp_dir, uploaded_file.name)
             with open(in_path, 'wb') as f:
