@@ -269,6 +269,34 @@
       "severity": "medium",
       "issue": "Brain death is distinct from VS/UWS and MCS. Verify this is not being conflated.",
       "rec": null
+    },
+    {
+      "pattern": "permanent(?:ly)?\\s+veget\\w*\\s+state",
+      "regex": true,
+      "severity": "high",
+      "issue": "The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.",
+      "rec": "7"
+    },
+    {
+      "pattern": "veget\\w*\\s+state[^.]{0,60}?\\bis\\s+permanent\\b",
+      "regex": true,
+      "severity": "high",
+      "issue": "The guideline recommends discontinuing 'permanent VS.' Use 'chronic VS/UWS' with duration instead.",
+      "rec": "7"
+    },
+    {
+      "pattern": "\\bPVS\\b[^.]{0,80}?\\b(?:irreversible|permanent)\\b",
+      "regex": true,
+      "severity": "medium",
+      "issue": "PVS (persistent vegetative state) denotes VS/UWS lasting more than 1 month and does NOT itself imply irreversibility. 'Permanent vegetative state' is a distinct prognostic term applied at 3 months (nontraumatic) or 12 months (traumatic).",
+      "rec": "7"
+    },
+    {
+      "pattern": "no\\s+brain\\s+activity",
+      "regex": true,
+      "severity": "medium",
+      "issue": "Absence of brain activity describes brain death, a distinct clinical entity from disorders of consciousness (VS/UWS, MCS), which involve preserved brainstem and/or some cortical function. Verify this isn't conflating the two.",
+      "rec": null
     }
   ],
   "contradiction_flags": [
@@ -295,6 +323,48 @@
       "severity": "high",
       "issue": "The guideline uses chronic, not permanent. Three months applies to nontraumatic VS/UWS; traumatic VS/UWS uses 12 months.",
       "rec": "7"
+    },
+    {
+      "pattern": "(?:uniformly|invariably|always|universally)[^.]{0,20}?\\bpoor\\s+prognosis\\b",
+      "regex": true,
+      "severity": "high",
+      "issue": "The guideline says clinicians must avoid statements suggesting a universally poor prognosis, especially in the first 28 days, and that prognosis is not universally poor even for less favorable subgroups (Recommendations 3 and 8).",
+      "rec": "3"
+    },
+    {
+      "pattern": "poor\\s+prognosis\\s+in\\s+(?:all|every)\\s+cases?",
+      "regex": true,
+      "severity": "high",
+      "issue": "The guideline says clinicians must avoid statements suggesting a universally poor prognosis, especially in the first 28 days, and that prognosis is not universally poor even for less favorable subgroups (Recommendations 3 and 8).",
+      "rec": "3"
+    },
+    {
+      "pattern": "no\\s+(?:chance|possibility|hope|likelihood)\\s+of\\s+(?:recovery|recovering|regaining\\s+consciousness)",
+      "regex": true,
+      "severity": "high",
+      "issue": "Conflicts with guideline language that prognosis is not universally poor and individual outcomes vary; MCS diagnosed within 5 months and traumatic etiology are both associated with more favorable outcomes (Recommendation 8).",
+      "rec": "3"
+    },
+    {
+      "pattern": "will\\s+never\\s+recover\\s+consciousness",
+      "regex": true,
+      "severity": "high",
+      "issue": "Conflicts with guideline language that prognosis is not universally poor and individual outcomes vary; MCS diagnosed within 5 months and traumatic etiology are both associated with more favorable outcomes (Recommendation 8).",
+      "rec": "3"
+    },
+    {
+      "pattern": "amantadine[^.]{0,40}?\\bcures?\\b",
+      "regex": true,
+      "severity": "high",
+      "issue": "Amantadine may hasten functional recovery in a defined subgroup (traumatic VS/UWS or MCS, 4-16 weeks post injury); avoid saying it cures DoC.",
+      "rec": "14"
+    },
+    {
+      "pattern": "\\bcures?\\b[^.]{0,40}?amantadine",
+      "regex": true,
+      "severity": "high",
+      "issue": "Amantadine may hasten functional recovery in a defined subgroup (traumatic VS/UWS or MCS, 4-16 weeks post injury); avoid saying it cures DoC.",
+      "rec": "14"
     }
   ],
   "key_facts": [
