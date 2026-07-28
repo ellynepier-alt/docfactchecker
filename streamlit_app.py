@@ -76,6 +76,12 @@ st.markdown(f"""
     span[data-baseweb="tag"] {{ color: #FFFFFF !important; }}
     span[data-baseweb="tag"] span {{ color: #FFFFFF !important; }}
     span[data-baseweb="tag"] svg {{ fill: #FFFFFF !important; }}
+
+    /* Primary button ("Run fact-check") — force white label text/icon regardless of
+       theme background color. */
+    button[kind="primary"] {{ color: #FFFFFF !important; }}
+    button[kind="primary"] p {{ color: #FFFFFF !important; }}
+    button[kind="primary"] div {{ color: #FFFFFF !important; }}
 </style>
 """, unsafe_allow_html=True)
 
