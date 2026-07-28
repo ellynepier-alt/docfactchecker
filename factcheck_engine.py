@@ -531,8 +531,29 @@ def check_grammar(text):
         if re.match(r'\s*(?:https?://|www\.|doi\.org|[a-z0-9.]+\.(?:com|org|edu|gov)\b)', following_context, re.IGNORECASE):
             continue  # URL/DOI right after the period, common in reference lists
         issues.append({'issue': 'Sentence may need to start with a capital letter.', 'context': text[max(0, m.start() - 20):m.start() + 25].strip()})
-    if text.count('(') != text.count(')'):
-        issues.append({'issue': 'Unmatched parentheses found in the document.', 'context': ''})
+    # Unmatched parentheses: a global count mismatch (text.count('(') != text.count(')'))
+    # only tells you SOMETHING is wrong somewhere in the whole document — not useful in a
+    # long document. This scans left-to-right with a stack so each unmatched '(' or ')'
+    # is reported individually, with a text snippet showing exactly where it sits. This
+    # also catches cases a count comparison would miss entirely, e.g. ")(" has equal
+    # counts but is still broken.
+    open_stack = []  # positions of '(' not yet matched by a ')'
+    for i, ch in enumerate(text):
+        if ch == '(':
+            open_stack.append(i)
+        elif ch == ')':
+            if open_stack:
+                open_stack.pop()
+            else:
+                issues.append({
+                    'issue': 'Unmatched closing parenthesis ")" — no corresponding "(" before it.',
+                    'context': text[max(0, i - 45):i + 10].strip(),
+                })
+    for pos in open_stack:
+        issues.append({
+            'issue': 'Unmatched opening parenthesis "(" — no corresponding ")" found after it.',
+            'context': text[max(0, pos - 10):pos + 45].strip(),
+        })
     if text.count('"') % 2 != 0:
         issues.append({'issue': 'Unmatched double-quote mark found in the document.', 'context': ''})
     return issues[:20]
