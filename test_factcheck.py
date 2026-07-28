@@ -404,6 +404,28 @@ class TestWhitespaceAndParaphraseRobustness:
         unrelated = 'permanent damage was noted. vegetative state assessment protocols were reviewed separately.'
         assert not re.search(pattern, unrelated, re.IGNORECASE)
 
+    def test_unmatched_closing_paren_reports_its_location(self):
+        """check_grammar used to just compare total counts of '(' and ')', which only
+        tells you a mismatch exists somewhere — not useful in a long document. It should
+        report each unmatched paren with a text snippet showing where it is."""
+        text = 'The score threshold (CRS-R >=6) is favorable. See also the DRS) for prognosis.'
+        issues = fe.check_grammar(text)
+        matches = [i for i in issues if 'closing parenthesis' in i['issue']]
+        assert len(matches) == 1
+        assert 'DRS' in matches[0]['context']
+
+    def test_unmatched_opening_paren_reports_its_location(self):
+        text = 'Amantadine (100-200mg BID may hasten recovery in the appropriate window.'
+        issues = fe.check_grammar(text)
+        matches = [i for i in issues if 'opening parenthesis' in i['issue']]
+        assert len(matches) == 1
+        assert '100-200mg' in matches[0]['context']
+
+    def test_balanced_parentheses_not_flagged(self):
+        text = 'The CRS-R (Coma Recovery Scale-Revised) is a standardized tool used for (repeated) assessment.'
+        issues = fe.check_grammar(text)
+        assert not any('parenthesis' in i['issue'] for i in issues)
+
 
 if __name__ == '__main__':
     import sys
