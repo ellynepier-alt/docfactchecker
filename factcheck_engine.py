@@ -463,6 +463,31 @@ _EXTRA_DOMAIN_WORDS = {
 }
 
 
+_URL_DOI_EMAIL_PATTERN = re.compile(
+    r'(https?://\S+|www\.\S+|doi\s*:\s*\S+|10\.\d{4,9}/\S+|[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})',
+    re.IGNORECASE
+)
+
+
+def strip_urls_dois_emails(text):
+    """Remove URLs, DOIs, and email addresses so their fragments (the 'https', 'doi',
+    'org', 'edu' left behind once a tokenizer splits on punctuation, or a domain name
+    like 'paloaltou' from 'paloaltou.edu') never reach word-level checks. Replaced with
+    a space rather than deleted outright, so it doesn't glue neighboring words together."""
+    return _URL_DOI_EMAIL_PATTERN.sub(' ', text)
+
+
+_CITATION_LINE_PATTERN = re.compile(
+    r'https?://|www\.|doi\s*:|10\.\d{4,9}/|\((?:19|20)\d{2}\)|^\s*[A-Z][a-zA-Z\'-]+,\s+[A-Z]\.',
+    re.IGNORECASE
+)
+
+
+_URL_FRAGMENT_WHITELIST = {
+    'http', 'https', 'www', 'doi', 'org', 'edu', 'gov', 'com', 'net', 'html', 'htm', 'pdf', 'php',
+}
+
+
 def build_domain_whitelist(kb):
     words = set(_EXTRA_DOMAIN_WORDS)
     for rec in kb.get('recommendations', []):
@@ -484,22 +509,45 @@ def check_spelling(text, whitelist):
         from spellchecker import SpellChecker
     except Exception:
         return []
+    text = strip_urls_dois_emails(text)
     sc = SpellChecker()
     sc.word_frequency.load_words(whitelist)
 
-    words = re.findall(r"[A-Za-z']+", text)
-    counts = {}
-    for w in words:
-        if len(w) < 3 or w.isupper() or any(ch.isdigit() for ch in w):
-            continue
-        wl = w.lower()
-        if wl in whitelist:
-            continue
-        counts[wl] = counts.get(wl, 0) + 1
+    counts = {}                  # lowercase word -> occurrence count
+    always_capitalized = {}      # lowercase word -> still True/False as we scan
+    seen_non_initial_cap = set() # lowercase words seen capitalized NOT at sentence-start
+
+    # Split into sentences (not just on whitespace) so word position 0 = sentence-initial,
+    # which is what makes the proper-noun heuristic below meaningful — a word that's
+    # ONLY ever capitalized because it happens to start a sentence (e.g. "The") isn't
+    # evidence it's a proper noun; a word capitalized mid-sentence (e.g. "(Abramson et
+    # al., 2019)") is much stronger evidence.
+    sentences = re.split(r'(?<=[.!?])\s+|\n+', text)
+    for sentence in sentences:
+        words = re.findall(r"[A-Za-z']+", sentence)
+        for idx, w in enumerate(words):
+            if len(w) < 3 or w.isupper():
+                continue
+            wl = w.lower()
+            if wl in whitelist or wl in _URL_FRAGMENT_WHITELIST:
+                continue
+            counts[wl] = counts.get(wl, 0) + 1
+            is_title_case = w[0].isupper() and w[1:].islower()
+            always_capitalized[wl] = always_capitalized.get(wl, True) and is_title_case
+            if is_title_case and idx != 0:
+                seen_non_initial_cap.add(wl)
 
     if not counts:
         return []
-    unknown = sc.unknown(list(counts.keys()))
+
+    # Likely proper nouns (names, places, brands): skip from spell-check entirely rather
+    # than relying on the dictionary to already know them.
+    proper_noun_candidates = {w for w in counts if always_capitalized.get(w) and w in seen_non_initial_cap}
+    check_words = [w for w in counts if w not in proper_noun_candidates]
+    if not check_words:
+        return []
+
+    unknown = sc.unknown(check_words)
     results = []
     for w in sorted(unknown, key=lambda x: -counts[x])[:20]:
         results.append({'word': w, 'count': counts[w], 'suggestion': sc.correction(w)})
@@ -517,9 +565,16 @@ def check_grammar(text):
     for line in text.split('\n'):
         for m in re.finditer(r'\b(\w+)\s+\1\b', line, re.IGNORECASE):
             issues.append({'issue': f'Repeated word: "{m.group(1)}"', 'context': line[max(0, m.start() - 40):m.end() + 40].strip()})
-    if '  ' in text:
-        first = text.find('  ')
-        issues.append({'issue': 'Multiple consecutive spaces found.', 'context': text[max(0, first - 30):first + 30].strip()})
+    space_line = None
+    for line in text.split('\n'):
+        if _CITATION_LINE_PATTERN.search(line):
+            continue  # reference-list entries routinely have irregular spacing; not a real typo
+        if '  ' in line:
+            space_line = line
+            break
+    if space_line is not None:
+        first = space_line.find('  ')
+        issues.append({'issue': 'Multiple consecutive spaces found.', 'context': space_line[max(0, first - 30):first + 30].strip()})
     for m in re.finditer(r'(\S+)([.!?])\s+([a-z])', text):
         preceding_token = m.group(1)
         combined = (preceding_token + m.group(2)).lower()
