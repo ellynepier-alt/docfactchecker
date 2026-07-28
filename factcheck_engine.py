@@ -1128,7 +1128,85 @@ def compute_ocr_warning(filepath, text):
     return None
 
 
-def run_checks(filepath, kb):
+_GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
+_LLM_VERIFY_KINDS = {'Worth double-checking'}  # only the semantic-judgment flags — these
+# are the ones prone to false positives from proximity-based regex matching (it can't
+# understand negation or contrast). Terminology/Key fact mismatch flags are mechanical
+# checks (does a discouraged phrase appear? does a number match?) and don't need this.
+_LLM_MAX_CALLS_PER_RUN = 12  # stay well under the Gemini free tier's ~10-15 requests/minute
+
+
+def verify_flags_with_llm(flags, api_key):
+    """Optionally ask a Gemini model to sanity-check 'Worth double-checking' flags before
+    a human reviewer sees them. Purely additive — never removes or changes a flag, only
+    attaches an 'ai_review' dict ({'verdict': ..., 'reason': ...}) the UI can display.
+    No-ops cleanly (returns flags unchanged) if the google-genai package isn't installed,
+    no API key is configured, or a request fails/rate-limits — this is a supplementary
+    sanity-check layer, not something the tool depends on to function.
+
+    PRIVACY / DATA HANDLING — read before enabling:
+    This sends each flagged sentence and its surrounding context (not the whole document)
+    to Google's Gemini API. On the FREE tier specifically, Google may use submitted
+    prompts to improve their models, and the free tier is not HIPAA/BAA-eligible or
+    covered by a data processing agreement. Do NOT enable this on documents containing
+    PHI, patient-identifiable information, or other confidential/regulated content —
+    this mirrors the tool's existing no-PHI policy, it just applies to this feature too.
+    """
+    if not api_key:
+        return flags
+    try:
+        from google import genai
+    except Exception:
+        return flags
+
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception:
+        return flags
+
+    calls_made = 0
+    for f in flags:
+        if calls_made >= _LLM_MAX_CALLS_PER_RUN:
+            break
+        if f['kind'] not in _LLM_VERIFY_KINDS:
+            continue
+
+        prompt = (
+            "You are sanity-checking one flag from an automated, rule-based fact-checker "
+            "for Disorders of Consciousness (DoC) clinical guideline materials. The flag "
+            "was raised by proximity-based text matching, which cannot reliably understand "
+            "negation, contrast, or surrounding context.\n\n"
+            f"Flagged text: \"{f['matched']}\"\n"
+            f"Surrounding context: \"{f['context']}\"\n"
+            f"Automated issue description: \"{f['issue']}\"\n\n"
+            "Is this actually a real issue given the full context, or a false positive "
+            "(e.g. the passage negates the claim, contrasts it with a different condition, "
+            "or is otherwise correctly worded)?\n\n"
+            "Respond with EXACTLY two lines and nothing else:\n"
+            "VERDICT: <likely a real issue | likely a false positive | unclear>\n"
+            "REASON: <one short sentence>"
+        )
+        try:
+            response = client.models.generate_content(model=_GEMINI_MODEL, contents=prompt)
+            calls_made += 1
+            reply = (response.text or '').strip()
+            verdict_match = re.search(r'VERDICT:\s*(.+)', reply, re.IGNORECASE)
+            reason_match = re.search(r'REASON:\s*(.+)', reply, re.IGNORECASE)
+            if verdict_match:
+                f['ai_review'] = {
+                    'verdict': verdict_match.group(1).strip(),
+                    'reason': reason_match.group(1).strip() if reason_match else '',
+                }
+        except Exception as e:
+            # Rate limit, bad key, network error, etc. — note it and move on. A failed
+            # sanity-check must never take down the underlying fact-check.
+            f['ai_review'] = {'verdict': 'unavailable', 'reason': f'AI review failed: {type(e).__name__}'}
+            calls_made += 1
+
+    return flags
+
+
+def run_checks(filepath, kb, verify_with_llm=False, llm_api_key=None):
     text = extract_text(filepath)
     ocr_warning = compute_ocr_warning(filepath, text)
     flags = []
@@ -1405,6 +1483,8 @@ def run_checks(filepath, kb):
         deduped_flags.append(f)
     flags = deduped_flags
     flags.sort(key=lambda x: order.get(x['severity'], 9))
+    if verify_with_llm and llm_api_key:
+        flags = verify_flags_with_llm(flags, llm_api_key)
     accessibility_findings = check_accessibility(filepath, text)
     return {
         'filename': os.path.basename(filepath),
