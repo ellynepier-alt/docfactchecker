@@ -1074,7 +1074,7 @@ def run_checks(filepath, kb):
     for f in kb['contradiction_flags']:
         pattern = f['pattern'] if f.get('regex') else flexible_pattern(f['pattern'].lower())
         for m in re.finditer(pattern, norm, re.IGNORECASE):
-            add_flag(flags, 'Possible contradiction', f['severity'], norm[m.start():m.end()], f['issue'], f.get('rec'), context(norm, m.start(), m.end()))
+            add_flag(flags, 'Worth double-checking', f['severity'], norm[m.start():m.end()], f['issue'], f.get('rec'), context(norm, m.start(), m.end()))
 
     if 'amantadine' in norm:
         for m in re.finditer(r'amantadine[^.]{0,80}?(\d{2,4})\s*mg', norm):
@@ -1110,13 +1110,35 @@ def run_checks(filepath, kb):
             add_flag(flags, 'Key fact mismatch', 'medium', f'SPECT at {lo}-{hi} months', 'Guideline specifies SPECT should be performed 1-2 months post injury in traumatic VS/UWS.', '5', context(norm, m.start(), m.end()))
 
     # --- Precise terminology/definition checks (Appendix A-style glossary) ---
-    for m in re.finditer(r'\bcoma\b[^.]{0,100}?eyes?\s+(?:are\s+|remain(?:ing|ed)?\s+)?open', norm):
-        add_flag(flags, 'Possible contradiction', 'high', 'coma ... eyes open', 'Coma is defined by no evidence of wakefulness, including eyes remaining continuously closed. Eyes opening is inconsistent with a coma diagnosis and suggests VS/UWS or a higher level of consciousness.', '7', context(norm, m.start(), m.end()))
-    for m in re.finditer(r'eyes?\s+(?:are\s+|remain(?:ing|ed)?\s+)?open[^.]{0,100}?\bcoma\b', norm):
-        add_flag(flags, 'Possible contradiction', 'high', 'eyes open ... coma', 'Coma is defined by no evidence of wakefulness, including eyes remaining continuously closed. Eyes opening is inconsistent with a coma diagnosis and suggests VS/UWS or a higher level of consciousness.', '7', context(norm, m.start(), m.end()))
+    # "Coma ... eyes open" is only a real contradiction if the eyes-open claim is
+    # actually being made ABOUT coma. Two legitimate constructions must NOT be flagged:
+    #   1. Negation: "coma involves no eye opening" is the textbook-CORRECT definition,
+    #      not a contradiction of it.
+    #   2. Contrast: "unlike coma, VS/UWS patients may open their eyes" is correctly
+    #      distinguishing two conditions, not claiming a comatose patient's eyes open.
+    # Without these guards, both of the above (accurate) sentences were false positives.
+    NEGATION_MARKERS = r'\b(?:no|not|without|absence of|lack(?:ing)? of|negative for)\b'
+    CONTRAST_MARKERS = r'\b(?:unlike|in contrast(?:\s+to)?|as opposed to|whereas|differs?\s+from|distinct\s+from|compared\s+(?:to|with)|versus|vs\.)\b'
+    OTHER_CONDITION = r'\b(?:vs/uws|vs\s*/\s*uws|unresponsive wakefulness|vegetative state|minimally conscious|\bmcs\b)\b'
+
+    def is_negated_or_contrasted(gap_text):
+        if re.search(NEGATION_MARKERS, gap_text):
+            return True
+        if re.search(CONTRAST_MARKERS, gap_text) and re.search(OTHER_CONDITION, gap_text):
+            return True
+        return False
+
+    for m in re.finditer(r'\bcoma\b([^.]{0,100}?)eyes?\s+(?:are\s+|remain(?:ing|ed)?\s+)?open', norm):
+        if is_negated_or_contrasted(m.group(1)):
+            continue
+        add_flag(flags, 'Worth double-checking', 'high', 'coma ... eyes open', 'Coma is typically defined by no evidence of wakefulness, including eyes remaining continuously closed — worth confirming this reflects the intended diagnosis, since eyes opening more often indicates VS/UWS or a higher level of consciousness than coma.', '7', context(norm, m.start(), m.end()))
+    for m in re.finditer(r'eyes?\s+(?:are\s+|remain(?:ing|ed)?\s+)?open([^.]{0,100}?)\bcoma\b', norm):
+        if is_negated_or_contrasted(m.group(1)):
+            continue
+        add_flag(flags, 'Worth double-checking', 'high', 'eyes open ... coma', 'Coma is typically defined by no evidence of wakefulness, including eyes remaining continuously closed — worth confirming this reflects the intended diagnosis, since eyes opening more often indicates VS/UWS or a higher level of consciousness than coma.', '7', context(norm, m.start(), m.end()))
 
     for m in re.finditer(r'(?:vegetative state|vs/uws|unresponsive wakefulness)[^.]{0,150}?(purposeful behavior|follow(?:s|ing)?\s+commands|command[- ]following)', norm):
-        add_flag(flags, 'Possible contradiction', 'high', 'VS/UWS ... purposeful behavior/commands', 'VS/UWS is defined by NO evidence of purposeful behavior. Command following or purposeful behavior indicates at least MCS, not VS/UWS.', '7', context(norm, m.start(), m.end()))
+        add_flag(flags, 'Worth double-checking', 'high', 'VS/UWS ... purposeful behavior/commands', 'VS/UWS is typically defined by no evidence of purposeful behavior — worth confirming the diagnosis here, since command following or purposeful behavior more often indicates at least MCS rather than VS/UWS.', '7', context(norm, m.start(), m.end()))
 
     def sentence_window(t, start, end):
         lo = t.rfind('.', 0, start)
@@ -1142,14 +1164,14 @@ def run_checks(filepath, kb):
         has_plus_sign = sign_present(win, mcs_plus_patterns)
         has_minus_sign = sign_present(win, mcs_minus_patterns)
         if has_minus_sign and not has_plus_sign:
-            add_flag(flags, 'Possible contradiction', 'medium', 'MCS+ near MCS- behaviors', 'MCS+ requires behavioral evidence of preserved receptive language (e.g., command following, intelligible speech). The nearby behaviors described (e.g., automatic movements, object manipulation, visual pursuit) define MCS-, not MCS+.', '7', context(norm, m.start(), m.end()))
+            add_flag(flags, 'Worth double-checking', 'medium', 'MCS+ near MCS- behaviors', 'MCS+ typically requires behavioral evidence of preserved receptive language (e.g., command following, intelligible speech) — worth confirming, since the nearby behaviors described (e.g., automatic movements, object manipulation, visual pursuit) are more often associated with MCS-.', '7', context(norm, m.start(), m.end()))
 
     for m in re.finditer(r'mcs-(?!\w)', norm):
         win = sentence_window(norm, m.start(), m.end())
         has_minus_sign = sign_present(win, mcs_minus_patterns)
         has_plus_sign = sign_present(win, mcs_plus_patterns)
         if has_plus_sign and not has_minus_sign:
-            add_flag(flags, 'Possible contradiction', 'medium', 'MCS- near MCS+ behaviors', 'MCS- is defined by nonlinguistic signs only (automatic movements, object manipulation, visual pursuit/fixation, affective behaviors). Command following or intelligible speech nearby indicates MCS+, not MCS-.', '7', context(norm, m.start(), m.end()))
+            add_flag(flags, 'Worth double-checking', 'medium', 'MCS- near MCS+ behaviors', 'MCS- is typically defined by nonlinguistic signs only (automatic movements, object manipulation, visual pursuit/fixation, affective behaviors) — worth confirming, since command following or intelligible speech nearby is more often associated with MCS+.', '7', context(norm, m.start(), m.end()))
 
     for m in re.finditer(r'persistent vegetative state[^.]{0,80}?(irreversible|permanent)', norm):
         add_flag(flags, 'Terminology', 'medium', 'persistent vegetative state ... permanent/irreversible', '"Persistent vegetative state" (PVS) denotes VS/UWS lasting more than 1 month and does not itself imply irreversibility. "Permanent vegetative state" is a distinct prognostic term applied at 3 months (nontraumatic) or 12 months (traumatic) indicating high probability of irreversibility.', '7', context(norm, m.start(), m.end()))
@@ -1162,14 +1184,14 @@ def run_checks(filepath, kb):
     for m in re.finditer(r'untrained clinicians?', norm):
         win = sentence_window(norm, m.start(), m.end())
         if re.search(r'non[\s-]?standardized|unstandardized', win):
-            add_flag(flags, 'Possible contradiction', 'high', 'untrained clinicians ... non-standardized assessment',
+            add_flag(flags, 'Worth double-checking', 'high', 'untrained clinicians ... non-standardized assessment',
                       'Guideline Recommendations 1 and 4 call for specialized, trained multidisciplinary teams to perform serial STANDARDIZED '
                       'behavioral evaluations — the opposite of untrained clinicians using non-standardized assessments.',
                       '4', context(norm, m.start(), m.end()))
     for m in re.finditer(r'non[\s-]?standardized\s+assessments?', norm):
         win = sentence_window(norm, m.start(), m.end())
         if not re.search(r'untrained clinicians?', win):  # avoid double-flagging the same sentence
-            add_flag(flags, 'Possible contradiction', 'high', 'non-standardized assessment recommended',
+            add_flag(flags, 'Worth double-checking', 'high', 'non-standardized assessment recommended',
                       'Guideline Recommendation 4 calls for performing serial STANDARDIZED behavioral evaluations to establish prognosis (Level B) — '
                       'not non-standardized assessments.',
                       '4', context(norm, m.start(), m.end()))
@@ -1184,7 +1206,7 @@ def run_checks(filepath, kb):
             unit = time_match.group(2)
             hours = qty if unit == 'hour' else qty * 24
             if hours < 672:  # 28 days
-                add_flag(flags, 'Possible contradiction', 'high', f'withdrawal of life-sustaining treatment ... {qty} {unit}(s)',
+                add_flag(flags, 'Worth double-checking', 'high', f'withdrawal of life-sustaining treatment ... {qty} {unit}(s)',
                           f'Guideline Recommendation 3 states clinicians MUST avoid statements suggesting a universally poor prognosis during the '
                           f'first 28 days post injury (Level A). Recommending withdrawal of life-sustaining treatment based on early appearance, '
                           f'well before the 28-day window ({qty} {unit}(s) here), directly contradicts this.',
