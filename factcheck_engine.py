@@ -35,7 +35,7 @@ DOMAIN_ANCHOR_TERMS = STRONG_ANCHOR_TERMS + WEAK_ANCHOR_TERMS
 # (which caused false "covered" hits on unrelated documents). A recommendation is only
 # counted as covered if at least one genuinely distinctive phrase/pattern below is found.
 REC_COVERAGE_SIGNATURES = {
-    '1': [r'multidisciplinary rehabilitation', r'specialized rehabilitation', r'rehabilitation team', r'refer[^.]{0,40}rehabilitation'],
+    '1': [r'multidisciplinary rehabilitation', r'specialized rehabilitation', r'rehabilitation team', r'refer[^.]{0,40}rehabilitation', r'multidisciplinary team'],
     '2a': [r'standardized neurobehavioral assessment', r'standardized behavioral assessment', r'valid and reliable[^.]{0,30}assessment'],
     '2b': [r'serial standardized (?:neurobehavioral|behavioral)? ?assessment', r'serial assessment'],
     '2c': [r'increase arousal before', r'arousal before evaluation', r'diminished arousal'],
@@ -48,8 +48,8 @@ REC_COVERAGE_SIGNATURES = {
     '6': [r'nontraumatic post-anoxic', r'post-anoxic vs/uws', r'crs-r', r'somatosensory evoked potential', r'\bseps?\b'],
     '7': [r'permanent vs\b', r'permanent vegetative state', r'chronic vs/uws', r'discontinue[^.]{0,30}terminology'],
     '8': [r'prognostic factors', r'individual outcomes vary', r'traumatic etiology', r'nontraumatic etiology'],
-    '9': [r'goals of care', r'long-term disability', r'medical decision-making forms?'],
-    '10': [r'chronic phase', r'prognostic counseling'],
+    '9': [r'goals of care', r'long-term disability', r'medical decision-making forms?', r'advance care planning'],
+    '10': [r'chronic phase', r'prognostic counseling', r'prognosis discussion'],
     '11': [r'patient and family preferences', r'family preferences'],
     '12': [r'medical complications', r'systematic assessment[^.]{0,30}(?:prevention|complication)'],
     '13': [r'pain or suffering', r'pain and suffering', r'assess[^.]{0,30}\bpain\b'],
