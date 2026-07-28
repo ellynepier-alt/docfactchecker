@@ -356,6 +356,55 @@ class TestFileFormatSupport:
         return path
 
 
+# ---------------------------------------------------------------------------
+# Whitespace/hyphen tolerance and paraphrase matching
+# (regression tests for a real bug: the core terminology_flags/contradiction_flags
+# loop used to do a literal substring match against unnormalized text, so a KB
+# pattern split across a paragraph/table-cell/PDF-page boundary — or written with a
+# hyphen instead of a space — silently failed to match. flexible_pattern() fixes this;
+# these tests keep it fixed.)
+# ---------------------------------------------------------------------------
+class TestWhitespaceAndParaphraseRobustness:
+    def test_phrase_split_across_paragraph_boundary_still_flagged(self, kb):
+        """A KB phrase ('permanent vegetative state') split across two separate docx
+        paragraphs — the way a PDF page break or table-cell boundary would split it —
+        must still be flagged. This is the core bug: extract_text() joins chunks with
+        '\\n', and the old literal-substring match against unnormalized text missed
+        anything split at one of those boundaries."""
+        d = tempfile.mkdtemp()
+        path = os.path.join(d, 'split.docx')
+        doc = Document()
+        doc.add_paragraph('The family was told this is now a permanent')
+        doc.add_paragraph('vegetative state with little hope of change.')
+        doc.save(path)
+        result = fe.run_checks(path, kb)
+        assert 'Terminology' in flag_kinds(result)
+
+    def test_hyphenated_variant_flagged(self, kb, tmp_txt):
+        """'brain dead' (KB pattern, space-separated) must also match 'brain-dead'
+        (hyphenated) — real documents are inconsistent about which one they use."""
+        path = tmp_txt('The clinical team described the patient as brain-dead on exam.')
+        result = fe.run_checks(path, kb)
+        assert any('brain' in f['matched'].lower() for f in result['flags'])
+
+    def test_paraphrased_no_chance_of_recovery_flagged(self, kb, tmp_txt):
+        """The literal KB pattern 'no chance of recovery' has a regex sibling entry
+        that also catches 'no possibility of recovering consciousness' and similar
+        rephrasings — real materials rarely use the guideline's exact wording."""
+        path = tmp_txt('The physician explained there is no possibility of recovering consciousness in this case.')
+        result = fe.run_checks(path, kb)
+        assert any(f['kind'] == 'Possible contradiction' for f in result['flags'])
+
+    def test_flexible_pattern_does_not_bridge_unrelated_sentences(self):
+        """Sanity check on the fix itself: flexible_pattern's gap regex must only
+        bridge immediate whitespace/period/hyphen — not arbitrary intervening text —
+        so it doesn't turn into a fuzzy match across genuinely unrelated sentences."""
+        import re
+        pattern = fe.flexible_pattern('permanent vegetative state')
+        unrelated = 'permanent damage was noted. vegetative state assessment protocols were reviewed separately.'
+        assert not re.search(pattern, unrelated, re.IGNORECASE)
+
+
 if __name__ == '__main__':
     import sys
     sys.exit(pytest.main([__file__, '-v']))
