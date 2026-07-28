@@ -354,9 +354,10 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
 
     with st.expander('Appendix: guideline recommendation wording', key=f"appendix_{key_suffix}"):
         st.caption(
-            "What this is: the complete, word-for-word text of every recommendation in the guideline listed above, "
-            "pulled directly from the source PDF. It's here so you can check the exact official wording behind any "
-            "flag or the coverage map, without needing to dig up and search the original guideline document yourself."
+            "What this is: a condensed summary of every recommendation in the guideline listed above, "
+            "checked against the source PDF for factual accuracy (numbers, timeframes, and evidence levels all match). "
+            "The wording itself is paraphrased for brevity, not a verbatim quotation — see the full guideline "
+            "for the guideline's own exact phrasing of each recommendation statement."
         )
         for rec in kb['recommendations']:
             st.markdown(f"**Recommendation {rec['id']} (Level {'/'.join(rec['level'])})**")
