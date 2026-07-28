@@ -16,7 +16,7 @@ INDEX_PATH = os.path.join(HISTORY_DIR, 'index.json')
 
 os.makedirs(HISTORY_DIR, exist_ok=True)
 
-st.set_page_config(page_title='DoC KT Tool Check', page_icon='📋', layout='wide')
+st.set_page_config(page_title='DoC KT Tool Check', layout='wide')
 
 MGB_DEEP_BLUE = '#003A96'
 MGB_TEAL = '#009CA6'
