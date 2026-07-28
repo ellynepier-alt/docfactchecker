@@ -388,6 +388,18 @@ _EXTRA_DOMAIN_WORDS = {
     'eeg', 'erp', 'sep', 'seps', 'tms', 'pci', 'emg', 'ptcs', 'emcs', 'aan', 'acrm', 'nidilrr',
     'amantadine', 'physiatrist', 'intensivist', 'neurorehabilitation', 'prognostication',
     'neuroimaging', 'electrophysiologic', 'unresponsiveness', 'subacute',
+    # clinical exam / neuro terms
+    'oromotor', 'confounders', 'confounder', 'semireclining', 'hypoxic', 'hypoxia',
+    'hyperlipidemia', 'craniectomy', 'craniotomy', 'intubated', 'intubate', 'intubation',
+    'intraparenchymal', 'subscale', 'premorbid', 'hemiparetic', 'hemiparesis', 'echocardiogram',
+    'saccadic', 'neuro', 'subarachnoid', 'nystagmus', 'dysphagia', 'aphasia', 'apraxia',
+    'spasticity', 'contracture', 'contractures', 'orthotic', 'orthotics', 'splinting',
+    'tracheostomy', 'decannulation', 'heterotopic', 'ossification', 'autonomic', 'sternocleidomastoid',
+    'neuromuscular', 'proprioceptive', 'nociceptive', 'somatosensory', 'sedated', 'sedation',
+    # medications
+    'fentanyl', 'clonidine', 'oxycodone', 'benzodiazepines', 'benzodiazepine', 'depakote',
+    'propofol', 'midazolam', 'dexmedetomidine', 'baclofen', 'gabapentin', 'valproate',
+    'levetiracetam', 'zolpidem', 'bromocriptine', 'methylphenidate', 'modafinil',
 }
 
 
