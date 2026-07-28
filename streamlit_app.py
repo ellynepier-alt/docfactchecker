@@ -16,36 +16,85 @@ INDEX_PATH = os.path.join(HISTORY_DIR, 'index.json')
 
 os.makedirs(HISTORY_DIR, exist_ok=True)
 
-st.set_page_config(page_title='DoC Guideline Fact-Checker', page_icon='📋', layout='wide')
+APP_NAME = 'DoC Kit Check'
+
+st.set_page_config(page_title=APP_NAME, layout='wide')
 
 MGB_DEEP_BLUE = '#003A96'
 MGB_TEAL = '#009CA6'
 MGB_TEXT = '#202020'
+MGB_MUTED = '#5F6B7A'
+MGB_BORDER = 'rgba(0, 58, 150, 0.12)'
+
+# Status/severity colors used by the badge() helper below — kept in one place so the
+# table styling (render_wrapped_table) and the badges always agree with each other.
+BADGE_COLORS = {
+    'pass':   ('#E3F4E1', '#1E7A34'),
+    'fail':   ('#FBE4E4', '#B3261E'),
+    'warn':   ('#FFF4DE', '#8A5A00'),
+    'na':     ('#EEF0F2', '#5F6B7A'),
+    'manual': ('#E3EEFB', '#0B5FA5'),
+    'high':   ('#FBE4E4', '#B3261E'),
+    'medium': ('#FFF4DE', '#8A5A00'),
+    'low':    ('#EEF0F2', '#5F6B7A'),
+    'covered': ('#E3F4E1', '#1E7A34'),
+}
 
 st.markdown(f"""
 <style>
-    h1 {{ color: {MGB_DEEP_BLUE} !important; }}
-    h2 {{ color: {MGB_DEEP_BLUE} !important; border-bottom: 2px solid {MGB_TEAL}; padding-bottom: 0.3rem; }}
+    h1 {{ color: {MGB_DEEP_BLUE} !important; font-weight: 700; }}
+    h2 {{ color: {MGB_DEEP_BLUE} !important; border-bottom: 2px solid {MGB_TEAL}; padding-bottom: 0.4rem; margin-top: 0.5rem; }}
     h3, h4 {{ color: {MGB_TEXT} !important; }}
+    p, li, span, label {{ color: {MGB_TEXT}; }}
     [data-testid="stMetricValue"] {{ color: {MGB_DEEP_BLUE} !important; }}
-    [data-testid="stMetricLabel"] {{ color: {MGB_TEXT} !important; }}
+    [data-testid="stMetricLabel"] {{ color: {MGB_MUTED} !important; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.03em; }}
     .stProgress > div > div > div {{ background-color: {MGB_TEAL} !important; }}
-    hr {{ border-top: 1px solid {MGB_TEAL}; opacity: 0.5; }}
+    hr {{ border-top: 1px solid {MGB_TEAL}; opacity: 0.4; margin: 1.75rem 0; }}
     [data-testid="stTabs"] button[aria-selected="true"] {{ color: {MGB_DEEP_BLUE} !important; border-bottom-color: {MGB_DEEP_BLUE} !important; }}
+    [data-testid="stTabs"] button p {{ font-weight: 600; }}
+
+    .app-header {{ padding-bottom: 0.25rem; }}
+    .app-tagline {{ color: {MGB_MUTED}; font-size: 1rem; margin-top: -0.75rem; }}
+
+    .section-eyebrow {{
+        color: {MGB_TEAL}; font-size: 0.72rem; font-weight: 700;
+        letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: -0.6rem;
+    }}
+
+    .badge {{
+        display: inline-block; padding: 2px 10px; border-radius: 999px;
+        font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    }}
+
+    div[data-testid="stExpander"] {{
+        border: 1px solid {MGB_BORDER} !important; border-radius: 8px !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
+
+
+def badge(text, kind):
+    """Render a small colored status pill instead of an emoji/icon — used for pass/fail/
+    warn/manual accessibility statuses, high/medium/low severity, and covered/not-covered
+    markers. Must be used inside render_wrapped_table's raw_columns, since it returns HTML."""
+    bg, fg = BADGE_COLORS.get(kind, ('#EEF0F2', MGB_TEXT))
+    label = html_module.escape(str(text))
+    return f'<span class="badge" style="background:{bg}; color:{fg};">{label}</span>'
 
 
 import html as html_module
 
 
-def render_wrapped_table(rows, columns=None):
-    """Render a list-of-dicts as a static HTML table with wrapped text (no truncation/click-to-expand)."""
+def render_wrapped_table(rows, columns=None, raw_columns=None):
+    """Render a list-of-dicts as a static HTML table with wrapped text (no truncation/click-to-expand).
+    Columns listed in raw_columns are inserted as-is (use for badge() HTML); every other
+    column is escaped normally."""
     if not rows:
         st.write('None.')
         return
     if columns is None:
         columns = list(rows[0].keys())
+    raw_columns = raw_columns or set()
 
     def esc(v):
         return html_module.escape(str(v)).replace('\n', '<br>')
@@ -53,13 +102,14 @@ def render_wrapped_table(rows, columns=None):
     parts = ['<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">']
     parts.append('<thead><tr>')
     for c in columns:
-        parts.append(f'<th style="text-align:left; padding:6px 10px; border-bottom:2px solid #009CA6; color:#003A96;">{esc(c)}</th>')
+        parts.append(f'<th style="text-align:left; padding:8px 10px; border-bottom:2px solid {MGB_TEAL}; color:{MGB_DEEP_BLUE};">{esc(c)}</th>')
     parts.append('</tr></thead><tbody>')
     for row in rows:
         parts.append('<tr>')
         for c in columns:
             val = row.get(c, '')
-            parts.append(f'<td style="padding:6px 10px; border-bottom:1px solid rgba(128,128,128,0.25); white-space:normal; word-wrap:break-word; vertical-align:top;">{esc(val)}</td>')
+            cell = val if c in raw_columns else esc(val)
+            parts.append(f'<td style="padding:8px 10px; border-bottom:1px solid rgba(0,58,150,0.08); white-space:normal; word-wrap:break-word; vertical-align:top;">{cell}</td>')
         parts.append('</tr>')
     parts.append('</tbody></table>')
     st.markdown(''.join(parts), unsafe_allow_html=True)
@@ -157,7 +207,7 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
         st.caption(f"Original file: {filename}")
 
     if ocr_warning:
-        st.error(f"⚠️ OCR issue: {ocr_warning}")
+        st.error(f"OCR issue: {ocr_warning}")
 
     st.caption(f"Guideline: {kb['meta']['title']} ({kb['meta']['year']}) — {kb['meta']['citation']}")
 
@@ -166,7 +216,8 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
     # =======================================================================
     # SECTION 1: Guideline fact-check
     # =======================================================================
-    st.header('🔍 Guideline fact-check')
+    st.markdown('<div class="section-eyebrow">Section 1 of 4</div>', unsafe_allow_html=True)
+    st.header('Guideline fact-check')
     st.caption('Checks the content of your document against the DoC clinical guideline\'s recommendations and key facts.')
 
     total_errors = len(flags)
@@ -204,18 +255,19 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
             'Rec': rec['id'],
             'Topic': rec['topic'],
             'Level': '/'.join(rec['level']),
-            'Touched?': '✅' if rec['id'] in coverage else '',
+            'Touched?': badge('Covered', 'covered') if rec['id'] in coverage else '—',
         }
         for rec in kb['recommendations']
     ]
-    render_wrapped_table(coverage_rows)
+    render_wrapped_table(coverage_rows, raw_columns={'Touched?'})
 
     st.divider()
 
     # =======================================================================
     # SECTION 2: Section 508 / accessibility check
     # =======================================================================
-    st.header('♿ Section 508 / accessibility check')
+    st.markdown('<div class="section-eyebrow">Section 2 of 4</div>', unsafe_allow_html=True)
+    st.header('Section 508 / accessibility check')
     st.caption('Checks the document\'s structure (images, headings, tables, links) against Section 508 / WCAG requirements — separate from the fact-check above.')
 
     score = accessibility_score.get('score') if accessibility_score else None
@@ -238,25 +290,25 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
     else:
         st.caption('No automatically-scoreable accessibility checks apply to this file type.')
 
-    status_icons = {'pass': '✅', 'fail': '❌', 'warn': '⚠️', 'na': 'ℹ️', 'manual': '🔍'}
+    status_labels = {'pass': 'Pass', 'fail': 'Fail', 'warn': 'Warning', 'na': 'N/A', 'manual': 'Manual check'}
     a11y_rows = [
         {
-            '': status_icons.get(f['status'], ''),
+            'Status': badge(status_labels.get(f['status'], f['status']), f['status']),
             'Check': f['check'],
             'WCAG criterion': f['wcag'],
             'Finding': f['detail'],
         }
         for f in accessibility
     ]
-    render_wrapped_table(a11y_rows)
+    render_wrapped_table(a11y_rows, raw_columns={'Status'})
     if any(f['status'] == 'manual' for f in accessibility):
-        st.caption('🔍 = requires manual verification with a dedicated accessibility checker (e.g., Acrobat).')
+        st.caption('"Manual check" = requires verification with a dedicated accessibility checker (e.g., Acrobat).')
 
     fixable = [f for f in accessibility if f.get('fix') and f['status'] in ('fail', 'warn', 'manual')]
     if fixable:
         st.markdown('#### How can I fix this?')
         for fi, f in enumerate(fixable):
-            with st.expander(f"🔧 Fix: {f['check']}" + (f" — {f['detail'][:60]}..." if len(f['detail']) > 60 else ''), key=f"fix_{key_suffix}_{fi}"):
+            with st.expander(f"Fix: {f['check']}" + (f" — {f['detail'][:60]}..." if len(f['detail']) > 60 else ''), key=f"fix_{key_suffix}_{fi}"):
                 st.write(f['fix'])
 
     with st.expander('General accessibility checklist (WCAG POUR principles)', key=f"checklist_{key_suffix}"):
@@ -275,7 +327,8 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
     # =======================================================================
     # SECTION 3: Clarity & readability
     # =======================================================================
-    st.header('📖 Clarity & understandability')
+    st.markdown('<div class="section-eyebrow">Section 3 of 4</div>', unsafe_allow_html=True)
+    st.header('Clarity & understandability')
     st.caption('How readable your document is — separate from both the fact-check and the 508 check above.')
 
     c1, c2, c3 = st.columns(3)
@@ -315,7 +368,8 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
     # =======================================================================
     # SECTION 4: Proofreading
     # =======================================================================
-    st.header('✏️ Proofreading')
+    st.markdown('<div class="section-eyebrow">Section 4 of 4</div>', unsafe_allow_html=True)
+    st.header('Proofreading')
     st.caption('Spelling, grammar, possible plagiarism, missing citations, and wordiness — separate from the guideline fact-check above.')
 
     if proofreading.get('_unavailable'):
@@ -383,7 +437,9 @@ def render_result(filename, counts, flags, coverage, clarity, accessibility, acc
 # ---------------------------------------------------------------------------
 # Layout: Check a document | Previously reviewed
 # ---------------------------------------------------------------------------
-st.title('📋 DoC Guideline Fact-Checker')
+st.markdown(f'<div class="app-header"><h1>{APP_NAME}</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="app-tagline">Guideline compliance, accessibility, clarity, and proofreading checks for DoC materials.</div>', unsafe_allow_html=True)
+st.write('')
 
 kb = get_kb()
 
@@ -444,7 +500,7 @@ with tab_history:
         del_col, _ = st.columns([1, 4])
         with del_col:
             confirm_delete = st.checkbox('Confirm delete', key=f"confirm_delete_{selected_entry['id']}")
-            if st.button('🗑️ Delete this entry', disabled=not confirm_delete, key=f"delete_{selected_entry['id']}"):
+            if st.button('Delete this entry', disabled=not confirm_delete, key=f"delete_{selected_entry['id']}"):
                 delete_history_entry(selected_entry['id'])
                 st.success('Deleted.')
                 st.rerun()
@@ -520,14 +576,15 @@ with tab_coverage:
                     'Rec': rec['id'],
                     'Topic': rec['topic'],
                     'Level': '/'.join(rec['level']),
-                    'Covered?': '✅' if hits else '',
+                    'Covered?': 'Yes' if hits else '',
                     'Covered by (material — date)': docs_str,
                 })
-            render_wrapped_table(rows)
+            display_rows = [dict(r, **{'Covered?': badge('Covered', 'covered') if r['Covered?'] else '—'}) for r in rows]
+            render_wrapped_table(display_rows, raw_columns={'Covered?'})
 
             excel_bytes = build_excel_bytes(rows)
             st.download_button(
-                label='📥 Download cumulative coverage as Excel (.xlsx)',
+                label='Download cumulative coverage (Excel)',
                 data=excel_bytes,
                 file_name=f'cumulative_coverage_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx',
                 mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
