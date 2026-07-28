@@ -486,10 +486,10 @@ with tab_check:
     except Exception:
         gemini_api_key = os.environ.get('GEMINI_API_KEY', '')
     ai_review_enabled = st.checkbox(
-        'Double-check "Worth double-checking" flags with AI (Gemini)',
+        'Double-check with AI (Gemini)',
         value=False,
-        help='Sends only the flagged sentence and its surrounding context (not the whole document) to '
-             'Google\'s Gemini API to sanity-check flags prone to false positives. Do not enable this on '
+        help='Sends every flag\'s sentence and surrounding context (not the whole document) to '
+             'Google\'s Gemini API to sanity-check it. Do not enable this on '
              'documents containing PHI or other confidential/regulated content — see the note below.',
     )
     if ai_review_enabled:
@@ -504,8 +504,9 @@ with tab_check:
             'HIPAA/BAA-eligible. Only use this on non-PHI, non-confidential material — same policy as the rest of this tool.'
         )
         st.caption(
-            'Every flag gets checked, paced to stay within the free tier\'s rate limit (~9/minute) rather than '
-            'capped at a fixed number — documents with many flags will take longer to finish.'
+            'Every flag gets checked — Terminology, Worth double-checking, Key fact mismatch, and quiz-answer flags '
+            'alike — paced to stay within the free tier\'s rate limit (~9/minute) rather than capped at a fixed '
+            'number, so documents with many flags will take longer to finish.'
         )
 
     if uploaded_file is not None and st.button('Run fact-check', type='primary'):
