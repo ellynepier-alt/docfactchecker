@@ -578,6 +578,7 @@ with tab_coverage:
                     'Topic': rec['topic'],
                     'Level': '/'.join(rec['level']),
                     'Covered?': 'Yes' if hits else '',
+                    'References': len(hits),
                     'Covered by (material — date)': docs_str,
                 })
             display_rows = [dict(r, **{'Covered?': badge('Covered', 'covered') if r['Covered?'] else '—'}) for r in rows]
