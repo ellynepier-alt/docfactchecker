@@ -1129,10 +1129,6 @@ def compute_ocr_warning(filepath, text):
 
 
 _GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
-_LLM_VERIFY_KINDS = {'Worth double-checking'}  # only the semantic-judgment flags — these
-# are the ones prone to false positives from proximity-based regex matching (it can't
-# understand negation or contrast). Terminology/Key fact mismatch flags are mechanical
-# checks (does a discouraged phrase appear? does a number match?) and don't need this.
 _LLM_MIN_SECONDS_BETWEEN_CALLS = 6.5  # ~9 calls/minute, safely under Gemini Flash's ~10 RPM free-tier ceiling
 _LLM_MAX_RETRIES_ON_RATE_LIMIT = 3
 
@@ -1143,15 +1139,16 @@ def _looks_like_rate_limit_error(exc):
 
 
 def verify_flags_with_llm(flags, api_key):
-    """Ask a Gemini model to sanity-check every 'Worth double-checking' flag before a
-    human reviewer sees them — every qualifying flag gets sent, every time this is
-    enabled; calls are paced (not capped) to respect the free tier's rate limit, and a
-    rate-limit response is retried with backoff rather than treated as a reason to give
-    up on that flag. Purely additive — never removes or changes a flag, only attaches an
-    'ai_review' dict ({'verdict': ..., 'reason': ...}) the UI can display. Still no-ops
-    cleanly if the google-genai package isn't installed or no API key is configured —
-    this is a supplementary sanity-check layer, not something the tool depends on to
-    function — but once it starts, it works through the full flag list.
+    """Ask a Gemini model to sanity-check every flag before a human reviewer sees them —
+    every flag gets sent, regardless of kind (Terminology, Worth double-checking, Key
+    fact mismatch, Possible quiz answer error), every time this is enabled; calls are
+    paced (not capped) to respect the free tier's rate limit, and a rate-limit response
+    is retried with backoff rather than treated as a reason to give up on that flag.
+    Purely additive — never removes or changes a flag, only attaches an 'ai_review' dict
+    ({'verdict': ..., 'reason': ...}) the UI can display. Still no-ops cleanly if the
+    google-genai package isn't installed or no API key is configured — this is a
+    supplementary sanity-check layer, not something the tool depends on to function —
+    but once it starts, it works through the full flag list.
 
     PRIVACY / DATA HANDLING — read before enabling:
     This sends each flagged sentence and its surrounding context (not the whole document)
@@ -1175,9 +1172,6 @@ def verify_flags_with_llm(flags, api_key):
 
     last_call_at = None
     for f in flags:
-        if f['kind'] not in _LLM_VERIFY_KINDS:
-            continue
-
         prompt = (
             "You are sanity-checking one flag from an automated, rule-based fact-checker "
             "for Disorders of Consciousness (DoC) clinical guideline materials. The flag "
