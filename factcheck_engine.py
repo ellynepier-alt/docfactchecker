@@ -400,6 +400,11 @@ _EXTRA_DOMAIN_WORDS = {
     'fentanyl', 'clonidine', 'oxycodone', 'benzodiazepines', 'benzodiazepine', 'depakote',
     'propofol', 'midazolam', 'dexmedetomidine', 'baclofen', 'gabapentin', 'valproate',
     'levetiracetam', 'zolpidem', 'bromocriptine', 'methylphenidate', 'modafinil',
+    # additional neurosurgical/ICU terms found in real case vignettes
+    'dysconjugate', 'propranolol', 'parenchymal', 'decompressive', 'uncal', 'cranioplasty',
+    'subfalcine', 'paratonia', 'methicillin', 'keppra', 'herniation', 'vasospasm',
+    'ventriculostomy', 'craniotomies', 'hematoma', 'hemorrhage', 'hemorrhagic', 'edema',
+    'hydrocephalus', 'diaschisis', 'dysautonomia', 'polysomnography',
 }
 
 
@@ -415,6 +420,7 @@ def build_domain_whitelist(kb):
     for kf in kb.get('key_facts', []):
         for token in re.findall(r"[A-Za-z']+", kf.get('fact', '')):
             words.add(token.lower())
+    words.update(kb.get('guideline_vocabulary', []))
     return words
 
 
