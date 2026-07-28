@@ -1,4 +1,4 @@
-import os, re, json, tempfile, unicodedata
+import os, re, json, tempfile, unicodedata, time
 from docx import Document
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
@@ -1133,16 +1133,25 @@ _LLM_VERIFY_KINDS = {'Worth double-checking'}  # only the semantic-judgment flag
 # are the ones prone to false positives from proximity-based regex matching (it can't
 # understand negation or contrast). Terminology/Key fact mismatch flags are mechanical
 # checks (does a discouraged phrase appear? does a number match?) and don't need this.
-_LLM_MAX_CALLS_PER_RUN = 12  # stay well under the Gemini free tier's ~10-15 requests/minute
+_LLM_MIN_SECONDS_BETWEEN_CALLS = 6.5  # ~9 calls/minute, safely under Gemini Flash's ~10 RPM free-tier ceiling
+_LLM_MAX_RETRIES_ON_RATE_LIMIT = 3
+
+
+def _looks_like_rate_limit_error(exc):
+    msg = str(exc).lower()
+    return '429' in msg or 'rate limit' in msg or 'resource_exhausted' in msg or 'quota' in msg
 
 
 def verify_flags_with_llm(flags, api_key):
-    """Optionally ask a Gemini model to sanity-check 'Worth double-checking' flags before
-    a human reviewer sees them. Purely additive — never removes or changes a flag, only
-    attaches an 'ai_review' dict ({'verdict': ..., 'reason': ...}) the UI can display.
-    No-ops cleanly (returns flags unchanged) if the google-genai package isn't installed,
-    no API key is configured, or a request fails/rate-limits — this is a supplementary
-    sanity-check layer, not something the tool depends on to function.
+    """Ask a Gemini model to sanity-check every 'Worth double-checking' flag before a
+    human reviewer sees them — every qualifying flag gets sent, every time this is
+    enabled; calls are paced (not capped) to respect the free tier's rate limit, and a
+    rate-limit response is retried with backoff rather than treated as a reason to give
+    up on that flag. Purely additive — never removes or changes a flag, only attaches an
+    'ai_review' dict ({'verdict': ..., 'reason': ...}) the UI can display. Still no-ops
+    cleanly if the google-genai package isn't installed or no API key is configured —
+    this is a supplementary sanity-check layer, not something the tool depends on to
+    function — but once it starts, it works through the full flag list.
 
     PRIVACY / DATA HANDLING — read before enabling:
     This sends each flagged sentence and its surrounding context (not the whole document)
@@ -1164,10 +1173,8 @@ def verify_flags_with_llm(flags, api_key):
     except Exception:
         return flags
 
-    calls_made = 0
+    last_call_at = None
     for f in flags:
-        if calls_made >= _LLM_MAX_CALLS_PER_RUN:
-            break
         if f['kind'] not in _LLM_VERIFY_KINDS:
             continue
 
@@ -1186,22 +1193,36 @@ def verify_flags_with_llm(flags, api_key):
             "VERDICT: <likely a real issue | likely a false positive | unclear>\n"
             "REASON: <one short sentence>"
         )
-        try:
-            response = client.models.generate_content(model=_GEMINI_MODEL, contents=prompt)
-            calls_made += 1
-            reply = (response.text or '').strip()
-            verdict_match = re.search(r'VERDICT:\s*(.+)', reply, re.IGNORECASE)
-            reason_match = re.search(r'REASON:\s*(.+)', reply, re.IGNORECASE)
-            if verdict_match:
-                f['ai_review'] = {
-                    'verdict': verdict_match.group(1).strip(),
-                    'reason': reason_match.group(1).strip() if reason_match else '',
-                }
-        except Exception as e:
-            # Rate limit, bad key, network error, etc. — note it and move on. A failed
-            # sanity-check must never take down the underlying fact-check.
-            f['ai_review'] = {'verdict': 'unavailable', 'reason': f'AI review failed: {type(e).__name__}'}
-            calls_made += 1
+
+        attempt = 0
+        while True:
+            if last_call_at is not None:
+                elapsed = time.monotonic() - last_call_at
+                if elapsed < _LLM_MIN_SECONDS_BETWEEN_CALLS:
+                    time.sleep(_LLM_MIN_SECONDS_BETWEEN_CALLS - elapsed)
+            try:
+                response = client.models.generate_content(model=_GEMINI_MODEL, contents=prompt)
+                last_call_at = time.monotonic()
+                reply = (response.text or '').strip()
+                verdict_match = re.search(r'VERDICT:\s*(.+)', reply, re.IGNORECASE)
+                reason_match = re.search(r'REASON:\s*(.+)', reply, re.IGNORECASE)
+                if verdict_match:
+                    f['ai_review'] = {
+                        'verdict': verdict_match.group(1).strip(),
+                        'reason': reason_match.group(1).strip() if reason_match else '',
+                    }
+                break
+            except Exception as e:
+                last_call_at = time.monotonic()
+                if _looks_like_rate_limit_error(e) and attempt < _LLM_MAX_RETRIES_ON_RATE_LIMIT:
+                    attempt += 1
+                    time.sleep(_LLM_MIN_SECONDS_BETWEEN_CALLS * (2 ** attempt))  # exponential backoff
+                    continue
+                # Non-rate-limit failure, or retries exhausted — note it and move on to
+                # the next flag. A failed sanity-check must never take down the
+                # underlying fact-check, but every flag still gets a genuine attempt.
+                f['ai_review'] = {'verdict': 'unavailable', 'reason': f'AI review failed: {type(e).__name__}'}
+                break
 
     return flags
 
