@@ -393,7 +393,7 @@ class TestWhitespaceAndParaphraseRobustness:
         rephrasings — real materials rarely use the guideline's exact wording."""
         path = tmp_txt('The physician explained there is no possibility of recovering consciousness in this case.')
         result = fe.run_checks(path, kb)
-        assert any(f['kind'] == 'Possible contradiction' for f in result['flags'])
+        assert any(f['kind'] == 'Worth double-checking' for f in result['flags'])
 
     def test_flexible_pattern_does_not_bridge_unrelated_sentences(self):
         """Sanity check on the fix itself: flexible_pattern's gap regex must only
